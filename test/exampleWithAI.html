@@ -162,6 +162,14 @@
   \node at (2, -2) {Sample TikZ Diagram};
 \end{tikzpicture}</textarea>
     
+    <div style="margin-bottom: 15px;">
+        <label for="exampleSelect"><strong>Load Example:</strong></label>
+        <select id="exampleSelect" style="margin-left: 10px; padding: 5px; font-size: 14px;">
+            <!-- Options populated by JavaScript -->
+        </select>
+        <button type="button" onclick="loadExample()" style="margin-left: 10px; padding: 5px 15px;">Load Example</button>
+    </div>
+    
     <div class="checkbox-container">
         <label>
             <input type="checkbox" id="generateDescriptions" checked>
@@ -180,6 +188,300 @@
     <div id="result"></div>
 
     <script>
+        // TikZ Examples Data Structure
+        const tikzExamples = [
+            {
+                title: "Sine Wave (Default)",
+                code: `\\begin{tikzpicture}
+  % Draw axes
+  \\draw[->] (-0.5,0) -- (4.5,0) node[right] {$x$};
+  \\draw[->] (0,-2.5) -- (0,2.5) node[above] {$y$};
+  
+  % X-axis tick marks and labels
+  \\foreach \\x in {0,1,2,3,4}
+    \\draw (\\x,0.1) -- (\\x,-0.1) node[below] {\\x};
+  
+  % Y-axis tick marks and labels
+  \\foreach \\y in {-2,-1,0,1,2}
+    \\draw (0.1,\\y) -- (-0.1,\\y) node[left] {\\y};
+  
+  % Draw a sine wave
+  \\draw[blue, thick, domain=0:4, samples=100] plot (\\x, {2*sin(\\x r)});
+  
+  % Add labels
+  \\node at (2, -2) {Sample TikZ Diagram};
+\\end{tikzpicture}`
+            },
+            {
+                title: "Physics Example - Signpost",
+                code: `\\tikzstyle{load}   = [ultra thick,-latex]
+\\tikzstyle{stress} = [-latex]
+\\tikzstyle{dim}    = [latex-latex]
+\\tikzstyle{axis}   = [-latex,black!55]
+
+% Drawing Views
+\\tikzstyle{isometric}=[x={(0.710cm,-0.410cm)},y={(0cm,0.820cm)},z={(-0.710cm,-0.410cm)}]
+\\tikzstyle{dimetric} =[x={(0.935cm,-0.118cm)},y={(0cm,0.943cm)},z={(-0.354cm,-0.312cm)}]
+\\tikzstyle{dimetric2}=[x={(0.935cm,-0.118cm)},z={(0cm,0.943cm)},y={(+0.354cm,+0.312cm)}]
+\\tikzstyle{trimetric}=[x={(0.926cm,-0.207cm)},y={(0cm,0.837cm)},z={(-0.378cm,-0.507cm)}]
+
+  \\begin{tikzpicture}
+    \\node (origin) at (0,0) {}; % shift relative baseline
+    \\coordinate (O) at (2,3);
+    \\draw[fill=gray!10] (O) circle (1);
+    \\draw[fill=white] (O) circle (0.75) node[below,yshift=-1.125cm] {Signpost Cross Section};
+    \\draw[dim] (O) ++(-0.75,0) -- ++(1.5,0) node[midway,above] {$d_i$};
+    \\draw[dim] (O) ++(-1,1.25) -- ++(2,0) node[midway,above] {$d_o$}; 
+    \\foreach \\x in {-1,1} {
+      \\draw (O) ++(\\x,0.25) -- ++(0,1.25);
+    }
+  \\end{tikzpicture}%
+  \\begin{tikzpicture}[dimetric2]
+        \\coordinate (O) at (0,0,0);
+        \\draw[axis] (O) -- ++(6,0,0) node[right] {$x$};
+        \\draw[axis] (O) -- ++(0,6,0) node[above right] {$y$};
+        \\draw[axis] (O) -- ++(0,0,6) node[above] {$z$};
+        \\draw[fill=gray!50] (0,0,-0.5) circle (0.5); 
+        \\fill[fill=gray!50] (-0.46,-0.2,-0.5) -- (0.46,0.2,-0.5) -- (0.46,0.2,0) -- (-0.46,-0.2,0) -- cycle;
+        \\draw[fill=gray!20] (O) circle (0.5);
+    \\draw (0.46,0.2,-0.5) -- ++(0,0,0.5) node[below right,pos=0.0] {Fixed Support};
+    \\draw (-0.46,-0.2,-0.5) -- ++(0,0,0.5);
+    \\draw[fill=gray!10] (O) circle (0.2);
+    \\fill[fill=gray!10] (-0.175,-0.1,0) -- (0.175,0.1,0) -- ++(0,0,4) -- (-0.175,-0.1,4) -- cycle;
+    \\draw (-0.175,-0.1,0) -- ++(0,0,4);
+    \\draw (0.175,0.1,0) -- ++(0,0,4) node[right,midway] {Steel Post};
+    \\draw (4,0,3.95) -- ++(0,0,-1);
+    \\foreach \\z in {0.5,0.75,...,5} {
+      \\draw[-latex] (-2*\\z/5-0.2,0,\\z) -- (-0.2,0,\\z);
+    }
+    \\draw[load] (0,0,4) -- ++(0,0,-1.25) node[right,xshift=0.1cm] {$F_{z1}$};
+    \\draw[fill=gray!20] (-0.25,-0.25,5) -- (4,-0.25,5) -- (4,+0.25,5) -- (-0.25,+0.25,5) -- cycle; 
+    \\draw[fill=gray!50] (+4.00,-0.25,4) -- (4,+0.25,4) -- (4,+0.25,5) -- (+4.00,-0.25,5) -- cycle; 
+    \\draw[fill=gray!10] (-0.25,-0.25,4) -- (4,-0.25,4) -- (4,-0.25,5) -- (-0.25,-0.25,5) -- cycle; 
+    \\draw (4.05,0,4) -- ++(1,0,0);
+    \\draw (4.05,0,5) -- ++(1,0,0);
+    \\draw[dim] (4.5,0,0) -- ++(0,0,4) node[midway,right] {$h_1$};
+    \\draw[dim] (4.5,0,4) -- ++(0,0,1) node[midway,right] {$h_2$};
+    \\draw[dim] (0,0,3.4) -- ++(4,0,0) node[midway,below] {$b_2$};
+    \\coordinate (P) at (2,-0.25,4.5);
+    \\draw (P) -- ++(0,0,0.25);
+    \\draw (P) -- ++(0.25,0,0);
+    \\draw[dim] (2.125,-0.25,4.5) -- ++(0,0,-0.5) node[midway,right] {$z_1$};
+    \\draw[dim] (2,-0.25,4.625) -- ++(-2,0,0) node[midway,below] {$x_1$};
+    \\draw[load] (2,-2.45,4.5) -- ++(0,2.2,0) node[pos=0.0,right,xshift=0.08cm] {$F_{y1}$};
+    \\draw[axis,dashed,-] (O) -- (0,0,5);
+    \\draw (0,0,5.5) -- ++(4,0,0) node[midway,above] {$w_{z}$};
+    \\foreach \\x in {0,0.25,...,4} {
+      \\draw[-latex] (\\x,0,5.5) -- ++(0,0,-0.5);
+    }
+    \\draw (-0.2,0,0) -- ++(-2,0,5) node[above,xshift=0.5cm] {$w_{x}=\\frac{z}{h_1+h_2} w_0$};
+  \\end{tikzpicture}`
+            },
+            {
+                title: "Planets by Gerard Fleuter",
+                code: `\\tikzset{partial ellipse/.style args =
+  {#1:#2:#3}{insert path={+ (#1:#3) arc (#1:#2:#3)}}}
+\\begin{tikzpicture}[>=latex]
+  %  ellipses
+  \\draw [fill=white!90!red]    (3,-1.8) ellipse    (4cm and 1 cm);
+  \\draw [fill=yellow!90!green] (3,-1.8) ellipse (3cm and 0.75 cm);
+  \\draw [fill=white!90!green]  (3,-1.8) ellipse  (2cm and 0.5 cm);
+
+  % -- Soleil
+  \\shade [ball color=gray!10!yellow] (3,-1.8) circle (1);
+  \\node (soleil) at (3,-1.8) {\\bf Soleil};
+  % partial ellipse pour tracé devant le Soleil
+  \\draw (3,-1.8) [partial ellipse=220:320:2cm and 0.5cm]
+        (3,-1.8) [partial ellipse=220:320:3cm and 0.75cm];
+
+  % Venus
+  \\shade [ball color=gray!10!orange] (1.6,-1.8) circle (.2);
+  \\node (venus) at (1.5,-1.45) {Venus}; 
+
+  % ombre de Venus
+  \\draw[color=white!70!black,fill=white!70!black]
+    (1.6,-2.3) ellipse (2mm and 0.5mm);
+
+  % Mercure
+  \\shade [ball color=gray!10!orange] (5,-1.225) circle (.25);
+  \\node (mercure) at (5,-0.8) {Mercure}; 
+
+  % Earth
+  \\shade [ball color=white!50!blue] (5.75,-2.5) circle (.33);
+  \\node (terre) at (6.6,-2.6) {\\bf Terre};
+
+  % Lune
+  \\shade [ball color=yellow] (5.25,-2.8) circle (.1);
+  \\node (lune) at (5.25,-3) {Lune};
+     
+  % Mars
+  \\draw (3,-1.8) [partial ellipse=45:120:9cm and 2.5cm];
+  \\shade [ball color=black!50!red] (5,0.66) circle (.15);
+  \\node (mars) at (5,1) {\\bf Mars};   
+  % trajet
+  \\draw [line width=2pt,blue,->,>=latex] (terre) to[out=0,in=0] (mars);   
+\\end{tikzpicture}`
+            },
+            {
+                title: "Bar Chart",
+                code: `\\begin{tikzpicture}
+  \\draw[->] (0,0) -- (5,0) node[right] {Category};
+  \\draw[->] (0,0) -- (0,4) node[above] {Value};
+  
+  \\draw[fill=blue!50] (0.5,0) rectangle (1,2);
+  \\draw[fill=red!50] (1.5,0) rectangle (2,3);
+  \\draw[fill=green!50] (2.5,0) rectangle (3,1.5);
+  \\draw[fill=yellow!50] (3.5,0) rectangle (4,3.5);
+  
+  \\node at (0.75,-0.3) {A};
+  \\node at (1.75,-0.3) {B};
+  \\node at (2.75,-0.3) {C};
+  \\node at (3.75,-0.3) {D};
+\\end{tikzpicture}`
+            },
+            {
+                title: "Linear Function with Annotations - Henri Menke",
+                code: `\\usetikzlibrary{arrows,intersections}
+\\begin{tikzpicture}[
+    thick,
+    >=stealth',
+    dot/.style = {
+      draw,
+      fill = white,
+      circle,
+      inner sep = 0pt,
+      minimum size = 4pt
+    }
+  ]
+  \\coordinate (O) at (0,0);
+  \\draw[->] (-0.3,0) -- (8,0) coordinate[label = {below:$x$}] (xmax);
+  \\draw[->] (0,-0.3) -- (0,5) coordinate[label = {right:$f(x)$}] (ymax);
+  \\path[name path=x] (0.3,0.5) -- (6.7,4.7);
+  \\path[name path=y] plot[smooth] coordinates {(-0.3,2) (2,1.5) (4,2.8) (6,5)};
+  \\scope[name intersections = {of = x and y, name = i}]
+    \\fill[gray!20] (i-1) -- (i-2 |- i-1) -- (i-2) -- cycle;
+    \\draw      (0.3,0.5) -- (6.7,4.7) node[pos=0.8, below right] {Secant};
+    \\draw[red] plot[smooth] coordinates {(-0.3,2) (2,1.5) (4,2.8) (6,5)};
+    \\draw (i-1) node[dot, label = {above:$P$}] (i-1) {} -- node[left]
+      {$f(x_0)$} (i-1 |- O) node[dot, label = {below:$x_0$}] {};
+    \\path (i-2) node[dot, label = {above:$Q$}] (i-2) {} -- (i-2 |- i-1)
+      node[dot] (i-12) {};
+    \\draw           (i-12) -- (i-12 |- O) node[dot,
+                              label = {below:$x_0 + \\varepsilon$}] {};
+    \\draw[blue, <->] (i-2) -- node[right] {$f(x_0 + \\varepsilon) - f(x_0)$}
+                              (i-12);
+    \\draw[blue, <->] (i-1) -- node[below] {$\\varepsilon$} (i-12);
+    \\path       (i-1 |- O) -- node[below] {$\\varepsilon$} (i-2 |- O);
+    \\draw[gray]      (i-2) -- (i-2 -| xmax);
+    \\draw[gray, <->] ([xshift = -0.5cm]i-2 -| xmax) -- node[fill = white]
+      {$f(x_0 + \\varepsilon)$}  ([xshift = -0.5cm]xmax);
+  \\endscope
+\\end{tikzpicture}`
+            },
+            {
+                title: "Polar Plot - Alex Chan",
+                code: `\\begin{tikzpicture}[>=latex]
+
+% Draw the lines at multiples of pi/12
+\\foreach \\ang in {0,...,31} {
+  \\draw [lightgray] (0,0) -- (\\ang * 180 / 16:4);
+}
+
+% Concentric circles and radius labels
+\\foreach \\s in {0, 1, 2, 3} {
+  \\draw [lightgray] (0,0) circle (\\s + 0.5);
+  \\draw (0,0) circle (\\s);
+  \\node [fill=white] at (\\s, 0) [below] {\\scriptsize $\\s$};
+}
+
+% Add the labels at multiples of pi/4
+\\foreach \\ang/\\lab/\\dir in {
+  0/0/right,
+  1/{\\pi/4}/{above right},
+  2/{\\pi/2}/above,
+  3/{3\\pi/4}/{above left},
+  4/{\\pi}/left,
+  5/{5\\pi/4}/{below left},
+  7/{7\\pi/4}/{below right},
+  6/{3\\pi/2}/below} {
+  \\draw (0,0) -- (\\ang * 180 / 4:4.1);
+  \\node [fill=white] at (\\ang * 180 / 4:4.2) [\\dir] {\\scriptsize $\\lab$};
+}
+
+% The double-lined circle around the whole diagram
+\\draw [style=double] (0,0) circle (4);
+
+\\fill [fill=red!50!black, opacity=0.5] plot [domain=-pi/2:pi/2]
+  (xy polar cs:angle=\\x r, radius= {2-2*sin(\\x r)});
+\\draw [thick, color=red, domain=0:2*pi, samples=200, smooth]
+  plot (xy polar cs:angle=\\x r, radius={2-2*sin(\\x r)});
+\\node [fill=white] at (2,1) {$r=2-2\\sin\\theta$};
+
+\\end{tikzpicture} `
+            },
+            {
+                title: "5 Venn Diagrams",
+                code: `% Definition of circles
+\\def\\firstcircle{(0,0) circle (1.5cm)}
+\\def\\secondcircle{(0:2cm) circle (1.5cm)}
+
+\\colorlet{circle edge}{blue!50}
+\\colorlet{circle area}{blue!20}
+
+\\tikzset{filled/.style={fill=circle area, draw=circle edge, thick},
+    outline/.style={draw=circle edge, thick}}
+
+\\setlength{\\parskip}{5mm}
+% Set A and B
+\\begin{tikzpicture}
+    \\begin{scope}
+        \\clip \\firstcircle;
+        \\fill[filled] \\secondcircle;
+    \\end{scope}
+    \\draw[outline] \\firstcircle node {$A$};
+    \\draw[outline] \\secondcircle node {$B$};
+    \\node[anchor=south] at (current bounding box.north) {$A \\cap B$};
+\\end{tikzpicture}
+
+%Set A or B but not (A and B) also known a A xor B
+\\begin{tikzpicture}
+    \\draw[filled, even odd rule] \\firstcircle node {$A$}
+                                 \\secondcircle node{$B$};
+    \\node[anchor=south] at (current bounding box.north) {$\\overline{A \\cap B}$};
+\\end{tikzpicture}
+
+% Set A or B
+\\begin{tikzpicture}
+    \\draw[filled] \\firstcircle node {$A$}
+                  \\secondcircle node {$B$};
+    \\node[anchor=south] at (current bounding box.north) {$A \\cup B$};
+\\end{tikzpicture}
+
+% Set A but not B
+\\begin{tikzpicture}
+    \\begin{scope}
+        \\clip \\firstcircle;
+        \\draw[filled, even odd rule] \\firstcircle node {$A$}
+                                     \\secondcircle;
+    \\end{scope}
+    \\draw[outline] \\firstcircle
+                   \\secondcircle node {$B$};
+    \\node[anchor=south] at (current bounding box.north) {$A - B$};
+\\end{tikzpicture}
+
+% Set B but not A
+\\begin{tikzpicture}
+    \\begin{scope}
+        \\clip \\secondcircle;
+        \\draw[filled, even odd rule] \\firstcircle
+                                     \\secondcircle node {$B$};
+    \\end{scope}
+    \\draw[outline] \\firstcircle node {$A$}
+                   \\secondcircle;
+    \\node[anchor=south] at (current bounding box.north) {$B - A$};
+\\end{tikzpicture}`}
+        ];
+        
         const API_URL = 'http://localhost:3010/api/render';
         const DESCRIBE_URL = 'http://localhost:3010/api/describe';
         let isRendering = false;
@@ -476,10 +778,34 @@
             return formatted;
         }
         
+        function populateExamplesDropdown() {
+            const select = document.getElementById('exampleSelect');
+            tikzExamples.forEach((example, index) => {
+                const option = document.createElement('option');
+                option.value = index;
+                option.textContent = example.title;
+                select.appendChild(option);
+            });
+        }
+        
+        function loadExample() {
+            const select = document.getElementById('exampleSelect');
+            const selectedIndex = select.value;
+            const example = tikzExamples[selectedIndex];
+            
+            if (example) {
+                document.getElementById('tikzInput').value = example.code;
+                log('Loaded example: ' + example.title);
+            }
+        }
+        
         // Test connection on page load
         window.addEventListener('load', async () => {
             log('Page loaded at: ' + new Date().toISOString());
             log('User agent: ' + navigator.userAgent);
+            
+            // Populate examples dropdown
+            populateExamplesDropdown();
             
             try {
                 log('Testing connection to server...');
