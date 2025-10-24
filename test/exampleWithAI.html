@@ -62,7 +62,7 @@
             text-align: left;
             max-height: 400px;
             overflow-y: auto;
-            display: none;
+            display: block;
         }
         .loading {
             color: #666;
@@ -100,7 +100,42 @@
         details[open] summary {
             margin-bottom: 10px;
         }
+        .long-desc-source {
+            text-align: left;
+            background: #f5f5f5;
+            padding: 10px;
+            font-size: 12px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            line-height: 1.6;
+        }
     </style>
+    <script class="show">
+  MathJax = {
+    tex: {inlineMath: {'[+]': [['$', '$']]}},
+    options: {
+    menuOptions: {
+      settings: {
+        enrich: false,         // true to enable semantic-enrichment
+        collapsible: false,   // true to enable collapsible math
+        speech: true,         // true to enable speech generation
+        braille: true,        // true to enable Braille generation
+        assistiveMml: true,  // true to enable assistive MathML
+      }
+    }
+  }, 
+  startup: {
+    ready: () => {
+      MathJax.startup.defaultReady();
+      MathJax.startup.promise.then(() => {
+        window.initEnhancedZoomExpressionDialog();
+      });
+    }
+  }
+};
+  </script>
+  <script class="show" defer src="https://cdn.jsdelivr.net/npm/mathjax@4/tex-chtml.js"></script>
 </head>
 <body>
     <h1>TikZ Render Service Demo</h1>
@@ -346,6 +381,10 @@
                                 <summary>Long Description</summary>
                                 <div style="padding: 10px;">${descriptions.longDescription}</div>
                             </details>
+                            <details>
+                                <summary>View Long Description Source</summary>
+                                <pre class="long-desc-source">${escapeHtml(formatHtmlSource(descriptions.longDescription))}</pre>
+                            </details>
                         </div>
                         ` : ''}
                         <details style="margin-top: 10px;">
@@ -366,12 +405,27 @@
                                 <summary>Long Description</summary>
                                 <div style="padding: 10px;">${descriptions.longDescription}</div>
                             </details>
+                            <details>
+                                <summary>View Long Description Source</summary>
+                                <pre class="long-desc-source">${escapeHtml(formatHtmlSource(descriptions.longDescription))}</pre>
+                            </details>
                         </div>
                         ` : ''}
                     `;
                 }
                 
                 log('Image displayed successfully!');
+                
+                // Typeset math in the newly inserted content
+                if (descriptions && window.MathJax) {
+                    log('Typesetting math with MathJax...');
+                    MathJax.typesetPromise([resultDiv]).then(() => {
+                        log('MathJax typesetting complete');
+                    }).catch((err) => {
+                        log('MathJax error: ' + err.message);
+                    });
+                }
+                
                 log('=== RENDER COMPLETED SUCCESSFULLY ===');
                 
             } catch (error) {
@@ -401,6 +455,25 @@
             const div = document.createElement('div');
             div.textContent = text;
             return div.innerHTML;
+        }
+        
+        function formatHtmlSource(html) {
+            // Add newlines and basic indentation to HTML for readability
+            let formatted = html;
+            
+            // Add newlines after opening tags (except inline elements)
+            formatted = formatted.replace(/(<(?:p|div|ul|ol|li|table|tr|td|th|details|summary)[^>]*>)/gi, '$1\n  ');
+            
+            // Add newlines before closing tags
+            formatted = formatted.replace(/(<\/(?:p|div|ul|ol|li|table|tr|td|th|details|summary)>)/gi, '\n$1\n');
+            
+            // Clean up multiple newlines
+            formatted = formatted.replace(/\n\s*\n\s*\n/g, '\n\n');
+            
+            // Trim
+            formatted = formatted.trim();
+            
+            return formatted;
         }
         
         // Test connection on page load
