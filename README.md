@@ -13,6 +13,9 @@ A Node.js Express service that compiles TikZ LaTeX code snippets and returns ren
 - Configurable timeouts for compilation safety
 - Health check endpoint for monitoring
 
+<img width="2570" height="4432" alt="image" src="https://github.com/user-attachments/assets/515b02f4-38fc-4bff-9e32-0a37c6a77648" />
+
+
 ## Prerequisites
 
 ### System Dependencies
