@@ -13,11 +13,27 @@ async function generateDescription(tikzCode, imageBase64, format) {
   const prompt = `You are an accessibility expert helping to generate descriptions for TikZ diagrams following the NWEA Image Description Guidelines for Assessments.
 
 Given the TikZ LaTeX code and the rendered image, generate:
-1. A short alt-text (maximum 150 characters) suitable for the HTML alt attribute
-2. A longer, detailed HTML description for first year university students with visual impairments using screen readers
+1. A short alt-text (maximum 150 characters) suitable for the HTML alt attribute with mathematical expressions as speech text
+2. A longer, detailed HTML description for first year university students with visual impairments using screen readers wth mathematical expressions in LaTeX format
 3. Note: Students do not see the TikZ code, only the rendered image. If the image does not contain the formula(s) represented in the TikZ code, base your descriptions solely on the image content.
 
-⚠️ CRITICAL REQUIREMENT - Mathematical Content MUST Use LaTeX:
+⚠️ CRITICAL REQUIREMENT - Mathematical Content in the altText MUST Be Speech Text:
+In the alt-text, all symbols, Greek letters, operators, and mathematical relationships must be linearized into speech text suitable for screen readers. This is MANDATORY for accessibility.
+
+Examples of CORRECT LaTeX usage in the altText:
+✓ "f of x equals x squared" NOT "f(x) = x^2"
+✓ "alpha" NOT "α"
+✓ "theta" NOT "θ"
+✓ "f of x is equal to a x squared plus b x plus c" NOT "f(x) = ax^2 + bx + c"
+✓ "x is approximately equal to 2.5" NOT "x ≈ 2.5"
+✓ "f of x is equal to sine of x" NOT "f(x) = sin(x)"
+✓ "f of x is equal to, e raised to the negative x power" NOT "f(x) = e^{-x}"
+✓ "angle of 45 degrees" NOT "angle of 45°"
+✓ "the fraction with numerator; a plus b; and denominator c; end fraction" NOT "(a + b) / c"
+✓ "f of x is equal to, the cube root of x, end root; plus 5" NOT "f(x) = ∛x + 5"
+✓ "f of x is equal to x times the absolute value of x end absolute value" NOT "f(x) = x |x|"
+
+⚠️ CRITICAL REQUIREMENT - Mathematical Content in the longDescription MUST Use LaTeX:
 ALL mathematical expressions, variables, numbers paired with variables, coordinates, equations, inequalities, formulas, Greek letters, and any symbolic math notation MUST be written in LaTeX using \\(...\\) for inline math. Screen readers cannot properly interpret plain text math - this is MANDATORY for accessibility.
 
 Examples of CORRECT LaTeX usage in long descriptions:
@@ -110,38 +126,26 @@ ${tikzCode}
   
   // Pre-process to properly escape backslashes for JSON parsing
   // This handles LaTeX notation like \( which needs to become \\( in JSON
-  // We need to be careful not to break existing escape sequences like \", \n, etc.
-  
-  // Strategy: Replace all backslashes with double backslashes, but only if they're not
-  // already part of a valid JSON escape sequence
-  // Valid JSON escape sequences: \", \\, \/, \b, \f, \n, \r, \t, \uXXXX
-  
-  // First, temporarily replace valid escape sequences with placeholders
-  const escapeMap = new Map();
-  let escapeIndex = 0;
-  
-  // Match valid JSON escape sequences
-  jsonString = jsonString.replace(/\\(?:["\\/bfnrt]|u[0-9a-fA-F]{4})/g, (match) => {
-    const placeholder = `__ESCAPE_${escapeIndex}__`;
-    escapeMap.set(placeholder, match);
-    escapeIndex++;
-    return placeholder;
-  });
-  
-  // Now escape all remaining backslashes (these are the LaTeX ones)
   jsonString = jsonString.replace(/\\/g, '\\\\');
   
-  // Restore the original escape sequences
-  escapeMap.forEach((original, placeholder) => {
-    jsonString = jsonString.replace(placeholder, original);
-  });
-
   const descriptions = JSON.parse(jsonString);
   
-  // Validate and truncate alt-text if needed
-  if (descriptions.altText.length > 150) {
-    descriptions.altText = descriptions.altText.substring(0, 147) + '...';
-  }
+  // Validate and truncate alt-text if needed trying to break at a space
+if (descriptions.altText.length > 200) {
+    // Look for last space in the range 180-200
+    const searchStart = 180;
+    const searchEnd = 200;
+    const substring = descriptions.altText.substring(searchStart, searchEnd);
+    const lastSpaceInRange = substring.lastIndexOf(' ');
+    
+    if (lastSpaceInRange !== -1) {
+        const truncateAt = searchStart + lastSpaceInRange;
+        descriptions.altText = descriptions.altText.substring(0, truncateAt) + '...';
+    } else {
+        // No space found in range, use character limit
+        descriptions.altText = descriptions.altText.substring(0, 197) + '...';
+    }
+}
 
   return descriptions;
 }
