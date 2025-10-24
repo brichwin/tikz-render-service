@@ -569,11 +569,7 @@ See the [LICENSE](LICENSE) file for details.
 
 ## Support
 
-For issues and questions:
-
-- Open an issue on the project repository
-- Check existing issues for solutions
-- Include relevant logs and error messages
+This repo is provided as-is without support.
 
 ## Acknowledgments
 
