@@ -11,7 +11,6 @@ app.use(cors());
 // Add request logging
 app.use((req, res, next) => {
   console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
-  console.log('Body:', req.body);
   next();
 });
 
