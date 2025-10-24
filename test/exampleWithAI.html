@@ -501,6 +501,8 @@
             const timestamp = new Date().toISOString();
             const logMessage = timestamp + ': ' + message + '\n';
             debugDiv.textContent += logMessage;
+            // Auto-scroll to bottom to show latest log entry
+            debugDiv.scrollTop = debugDiv.scrollHeight;
             console.log(timestamp, message);
         }
         
@@ -656,12 +658,23 @@
                 const cacheStatus = response.headers.get('X-Cache');
                 const cacheNote = cacheStatus === 'HIT' ? ' (from cache)' : ' (freshly rendered)';
                 
+                // Time checkpoint: TikZ rendering and image display complete
+                const tikzRenderTime = Date.now() - renderStartTime;
+                log('*** TikZ RENDER & IMAGE DISPLAY TIME: ' + tikzRenderTime + 'ms (' + (tikzRenderTime / 1000).toFixed(2) + ' seconds) ***');
+                
                 // Generate AI descriptions if enabled
                 let descriptions = null;
+                const aiDescStartTime = Date.now();
                 if (generateDesc) {
                     log('Converting blob to base64 for description generation...');
                     const imageBase64 = await blobToBase64(blob);
                     descriptions = await generateDescriptions(tikzCode, imageBase64, format);
+                }
+                
+                // Time checkpoint: AI descriptions complete
+                if (generateDesc) {
+                    const aiDescTime = Date.now() - aiDescStartTime;
+                    log('*** AI DESCRIPTION GENERATION TIME: ' + aiDescTime + 'ms (' + (aiDescTime / 1000).toFixed(2) + ' seconds) ***');
                 }
                 
                 log('Displaying image...');
@@ -746,7 +759,7 @@
                 
                 const totalElapsed = Date.now() - renderStartTime;
                 log('Buttons re-enabled, ready for next render');
-                log('*** TOTAL REQUEST TIME: ' + totalElapsed + 'ms (' + (totalElapsed / 1000).toFixed(2) + ' seconds) ***');
+                log('*** TOTAL TIME (TikZ Render + AI Descriptions + Display): ' + totalElapsed + 'ms (' + (totalElapsed / 1000).toFixed(2) + ' seconds) ***');
                 log('==============================================');
             }
             
