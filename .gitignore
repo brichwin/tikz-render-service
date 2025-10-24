@@ -1,0 +1,28 @@
+
+# Dependencies
+node_modules/
+
+# Environment variables (CONTAINS API KEYS - NEVER COMMIT)
+.env
+
+# Temporary files
+temp/
+*.log
+
+# MacOS
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Test coverage
+coverage/
+
+# Build outputs
+dist/
+build/
+EOF

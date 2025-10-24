@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TikZ Render Demo</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        textarea {
+            width: 100%;
+            height: 200px;
+            font-family: monospace;
+            padding: 10px;
+            margin-bottom: 10px;
+            box-sizing: border-box;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .checkbox-container {
+            margin: 10px 0;
+        }
+        .checkbox-container label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+        }
+        .checkbox-container input[type="checkbox"] {
+            cursor: pointer;
+        }
+        #result {
+            margin-top: 20px;
+            border: 1px solid #ccc;
+            padding: 20px;
+            min-height: 200px;
+            text-align: center;
+        }
+        #error {
+            color: red;
+            margin-top: 10px;
+        }
+        #debug {
+            margin-top: 10px;
+            padding: 10px;
+            background: #f0f0f0;
+            font-family: monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+            text-align: left;
+            max-height: 400px;
+            overflow-y: auto;
+            display: none;
+        }
+        .loading {
+            color: #666;
+        }
+        .description-section {
+            margin-top: 15px;
+            padding: 15px;
+            background: #f9f9f9;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            text-align: left;
+        }
+        .description-section h4 {
+            margin-top: 0;
+            color: #333;
+        }
+        .alt-text {
+            font-family: monospace;
+            background: #fff;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+            margin: 8px 0;
+        }
+        details {
+            margin-top: 10px;
+        }
+        summary {
+            cursor: pointer;
+            font-weight: bold;
+            padding: 5px;
+            background: #f0f0f0;
+            border-radius: 3px;
+        }
+        details[open] summary {
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>TikZ Render Service Demo</h1>
+    
+    <p>Enter your TikZ code below:</p>
+    
+    <textarea id="tikzInput">\begin{tikzpicture}
+  % Draw axes
+  \draw[->] (-0.5,0) -- (4.5,0) node[right] {$x$};
+  \draw[->] (0,-0.5) -- (0,3.5) node[above] {$y$};
+  
+  % Draw a sine wave
+  \draw[blue, thick, domain=0:4, samples=100] plot (\x, {2*sin(\x r)});
+  
+  % Add labels
+  \node at (2, -1) {Sample TikZ Diagram};
+\end{tikzpicture}</textarea>
+    
+    <div class="checkbox-container">
+        <label>
+            <input type="checkbox" id="generateDescriptions" checked>
+            Generate AI accessibility descriptions (requires API key)
+        </label>
+    </div>
+    
+    <div>
+        <button type="button" id="svgButton" onclick="render('svg')">Render as SVG</button>
+        <button type="button" id="pngButton" onclick="render('png')">Render as PNG</button>
+        <button type="button" onclick="toggleDebug()">Toggle Debug Info</button>
+    </div>
+    
+    <div id="error"></div>
+    <div id="debug"></div>
+    <div id="result"></div>
+
+    <script>
+        const API_URL = 'http://localhost:3010/api/render';
+        const DESCRIBE_URL = 'http://localhost:3010/api/describe';
+        let isRendering = false;
+        
+        // Detect unexpected page reloads
+        window.addEventListener('beforeunload', function(e) {
+            if (isRendering) {
+                console.error('WARNING: Page is reloading during render!');
+                const message = 'Rendering in progress. Are you sure you want to leave?';
+                e.returnValue = message;
+                return message;
+            }
+        });
+        
+        function log(message) {
+            const debugDiv = document.getElementById('debug');
+            const timestamp = new Date().toISOString();
+            const logMessage = timestamp + ': ' + message + '\n';
+            debugDiv.textContent += logMessage;
+            console.log(timestamp, message);
+        }
+        
+        function toggleDebug() {
+            const debugDiv = document.getElementById('debug');
+            debugDiv.style.display = debugDiv.style.display === 'none' ? 'block' : 'none';
+        }
+        
+        function setButtonsEnabled(enabled) {
+            document.getElementById('svgButton').disabled = !enabled;
+            document.getElementById('pngButton').disabled = !enabled;
+        }
+        
+        async function generateDescriptions(tikzCode, imageBase64, format) {
+            log('Generating AI descriptions...');
+            
+            try {
+                const response = await fetch(DESCRIBE_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        tikzCode: tikzCode,
+                        imageBase64: imageBase64,
+                        format: format
+                    })
+                });
+                
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.error || 'Description generation failed');
+                }
+                
+                const descriptions = await response.json();
+                if (descriptions) {
+                    if (descriptions.cached) {
+                        log('AI descriptions retrieved from cache');
+                    } else {
+                        log('AI descriptions freshly generated');
+                    }
+                }
+                log('AI descriptions generated successfully');
+                log('Alt text: ' + descriptions.altText);
+                
+                return descriptions;
+            } catch (error) {
+                log('Description generation failed: ' + error.message);
+                return null;
+            }
+        }
+        
+        function blobToBase64(blob) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onloadend = () => {
+                    // Remove the data URL prefix (e.g., "data:image/svg+xml;base64,")
+                    const base64 = reader.result.split(',')[1];
+                    resolve(base64);
+                };
+                reader.onerror = reject;
+                reader.readAsDataURL(blob);
+            });
+        }
+        
+        async function render(format) {
+            // Prevent multiple simultaneous renders
+            if (isRendering) {
+                log('Already rendering, please wait...');
+                return false;
+            }
+            
+            isRendering = true;
+            setButtonsEnabled(false);
+            
+            const renderStartTime = Date.now();
+            
+            log('=== RENDER STARTED ===');
+            log('Render function called with format: ' + format);
+            
+            const tikzCode = document.getElementById('tikzInput').value;
+            const generateDesc = document.getElementById('generateDescriptions').checked;
+            const resultDiv = document.getElementById('result');
+            const errorDiv = document.getElementById('error');
+            const debugDiv = document.getElementById('debug');
+            
+            // Clear previous results
+            resultDiv.innerHTML = '<p class="loading">Rendering... Please wait, this may take up to 30 seconds for complex diagrams.</p>';
+            errorDiv.textContent = '';
+            debugDiv.style.display = 'block';
+            
+            log('Format: ' + format);
+            log('Generate descriptions: ' + generateDesc);
+            log('TikZ code length: ' + tikzCode.length + ' characters');
+            log('First 100 chars: ' + tikzCode.substring(0, 100));
+            
+            try {
+                log('Making fetch request to: ' + API_URL);
+                log('Current timestamp: ' + Date.now());
+                
+                const startTime = Date.now();
+                
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        tikzCode: tikzCode,
+                        format: format
+                    })
+                }).catch(err => {
+                    log('FETCH FAILED: ' + err.name + ' - ' + err.message);
+                    throw err;
+                });
+                
+                const elapsed = Date.now() - startTime;
+                log('Response received after ' + elapsed + 'ms');
+                log('Response status: ' + response.status + ' ' + response.statusText);
+                log('Response headers:');
+                response.headers.forEach((value, key) => {
+                    log('  ' + key + ': ' + value);
+                });
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    log('Error response body: ' + errorText);
+                    let errorMessage;
+                    try {
+                        const error = JSON.parse(errorText);
+                        errorMessage = error.error || 'Rendering failed';
+                        if (error.details) {
+                            errorMessage += ' - ' + error.details;
+                        }
+                    } catch (e) {
+                        errorMessage = errorText || 'Rendering failed';
+                    }
+                    throw new Error(errorMessage);
+                }
+                
+                log('Converting response to blob...');
+                const blob = await response.blob();
+                log('Blob created - size: ' + blob.size + ' bytes, type: ' + blob.type);
+                
+                if (blob.size === 0) {
+                    throw new Error('Received empty response from server');
+                }
+                
+                log('Creating object URL...');
+                const imageUrl = URL.createObjectURL(blob);
+                log('Object URL created: ' + imageUrl);
+                
+                const cacheStatus = response.headers.get('X-Cache');
+                const cacheNote = cacheStatus === 'HIT' ? ' (from cache)' : ' (freshly rendered)';
+                
+                // Generate AI descriptions if enabled
+                let descriptions = null;
+                if (generateDesc) {
+                    log('Converting blob to base64 for description generation...');
+                    const imageBase64 = await blobToBase64(blob);
+                    descriptions = await generateDescriptions(tikzCode, imageBase64, format);
+                }
+                
+                log('Displaying image...');
+                
+                const altText = descriptions ? descriptions.altText : 'Rendered TikZ diagram';
+                
+                if (format === 'svg') {
+                    const text = await blob.text();
+                    log('SVG text length: ' + text.length + ' characters');
+                    resultDiv.innerHTML = `
+                        <p>Result${cacheNote}:</p>
+                        <img src="${imageUrl}" alt="${escapeHtml(altText)}" style="max-width: 100%; border: 1px solid #ddd;" onload="console.log('Image loaded successfully')">
+                        ${descriptions ? `
+                        <div class="description-section">
+                            <h4>AI-Generated Accessibility Descriptions</h4>
+                            <p><strong>Alt Text (for screen readers):</strong></p>
+                            <div class="alt-text">${escapeHtml(descriptions.altText)}</div>
+                            <details>
+                                <summary>Long Description</summary>
+                                <div style="padding: 10px;">${descriptions.longDescription}</div>
+                            </details>
+                        </div>
+                        ` : ''}
+                        <details style="margin-top: 10px;">
+                            <summary>View SVG source</summary>
+                            <pre style="text-align: left; overflow-x: auto; background: #f5f5f5; padding: 10px;">${escapeHtml(text)}</pre>
+                        </details>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `
+                        <p>Result${cacheNote}:</p>
+                        <img src="${imageUrl}" alt="${escapeHtml(altText)}" style="max-width: 100%; border: 1px solid #ddd;" onload="console.log('Image loaded successfully')">
+                        ${descriptions ? `
+                        <div class="description-section">
+                            <h4>AI-Generated Accessibility Descriptions</h4>
+                            <p><strong>Alt Text (for screen readers):</strong></p>
+                            <div class="alt-text">${escapeHtml(descriptions.altText)}</div>
+                            <details>
+                                <summary>Long Description</summary>
+                                <div style="padding: 10px;">${descriptions.longDescription}</div>
+                            </details>
+                        </div>
+                        ` : ''}
+                    `;
+                }
+                
+                log('Image displayed successfully!');
+                log('=== RENDER COMPLETED SUCCESSFULLY ===');
+                
+            } catch (error) {
+                log('!!! ERROR OCCURRED !!!');
+                log('Error type: ' + error.name);
+                log('Error message: ' + error.message);
+                if (error.stack) {
+                    log('Stack trace: ' + error.stack);
+                }
+                resultDiv.innerHTML = '<p style="color: red;">Rendering failed. See debug info below.</p>';
+                errorDiv.textContent = 'Error: ' + error.message;
+                log('=== RENDER FAILED ===');
+            } finally {
+                isRendering = false;
+                setButtonsEnabled(true);
+                
+                const totalElapsed = Date.now() - renderStartTime;
+                log('Buttons re-enabled, ready for next render');
+                log('*** TOTAL REQUEST TIME: ' + totalElapsed + 'ms (' + (totalElapsed / 1000).toFixed(2) + ' seconds) ***');
+                log('==============================================');
+            }
+            
+            return false;
+        }
+        
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        // Test connection on page load
+        window.addEventListener('load', async () => {
+            log('Page loaded at: ' + new Date().toISOString());
+            log('User agent: ' + navigator.userAgent);
+            
+            try {
+                log('Testing connection to server...');
+                const response = await fetch('http://localhost:3010/api/health');
+                if (response.ok) {
+                    const data = await response.json();
+                    log('✓ Server is healthy: ' + JSON.stringify(data));
+                    if (data.aiDescriptions) {
+                        log('✓ AI descriptions enabled');
+                    } else {
+                        log('⚠ AI descriptions disabled (no API key)');
+                    }
+                } else {
+                    log('✗ Server returned error: ' + response.status);
+                }
+            } catch (error) {
+                log('✗ Cannot connect to server: ' + error.message);
+                log('Make sure the server is running on port 3010');
+            }
+        });
+        
+        // Log if page visibility changes
+        document.addEventListener('visibilitychange', () => {
+            log('Page visibility changed: ' + document.visibilityState);
+        });
+        
+        console.log('TikZ Demo page initialized');
+    </script>
+</body>
+</html>
