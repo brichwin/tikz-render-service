@@ -13,7 +13,7 @@ A Node.js Express service that compiles TikZ LaTeX code snippets and returns ren
 - Configurable timeouts for compilation safety
 - Health check endpoint for monitoring
 
-<img width="2570" height="4432" alt="TikZ service output showing TikZ source code, debug output, rendered mathematical plot, and AI generated short and long description" src="https://github.com/user-attachments/assets/515b02f4-38fc-4bff-9e32-0a37c6a77648" />
+<img width="2570" height="4354" alt="TikZ service output showing TikZ source code, debug output, rendered mathematical plot, and AI generated short and long description" src="https://github.com/user-attachments/assets/a20b004c-45bc-4c9f-b524-9fb8443eb90b" />
 
 
 ## Prerequisites
