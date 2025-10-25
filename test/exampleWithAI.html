@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -11,6 +12,7 @@
             margin: 50px auto;
             padding: 20px;
         }
+
         textarea {
             width: 100%;
             height: 200px;
@@ -19,28 +21,34 @@
             margin-bottom: 10px;
             box-sizing: border-box;
         }
+
         button {
             padding: 10px 20px;
             font-size: 16px;
             cursor: pointer;
             margin-right: 10px;
         }
+
         button:disabled {
             opacity: 0.5;
             cursor: not-allowed;
         }
+
         .checkbox-container {
             margin: 10px 0;
         }
+
         .checkbox-container label {
             display: flex;
             align-items: center;
             gap: 8px;
             cursor: pointer;
         }
+
         .checkbox-container input[type="checkbox"] {
             cursor: pointer;
         }
+
         #result {
             margin-top: 20px;
             border: 1px solid #ccc;
@@ -48,10 +56,12 @@
             min-height: 200px;
             text-align: center;
         }
+
         #error {
             color: red;
             margin-top: 10px;
         }
+
         #debug {
             margin-top: 10px;
             padding: 10px;
@@ -64,9 +74,11 @@
             overflow-y: auto;
             display: block;
         }
+
         .loading {
             color: #666;
         }
+
         .description-section {
             margin-top: 15px;
             padding: 15px;
@@ -75,10 +87,12 @@
             border-radius: 4px;
             text-align: left;
         }
+
         .description-section h4 {
             margin-top: 0;
             color: #333;
         }
+
         .alt-text {
             font-family: monospace;
             background: #fff;
@@ -87,9 +101,11 @@
             border-radius: 3px;
             margin: 8px 0;
         }
+
         details {
             margin-top: 10px;
         }
+
         summary {
             cursor: pointer;
             font-weight: bold;
@@ -97,9 +113,11 @@
             background: #f0f0f0;
             border-radius: 3px;
         }
+
         details[open] summary {
             margin-bottom: 10px;
         }
+
         .long-desc-source {
             text-align: left;
             background: #f5f5f5;
@@ -112,36 +130,37 @@
         }
     </style>
     <script class="show">
-  MathJax = {
-    tex: {inlineMath: {'[+]': [['$', '$']]}},
-    options: {
-    menuOptions: {
-      settings: {
-        enrich: false,         // true to enable semantic-enrichment
-        collapsible: false,   // true to enable collapsible math
-        speech: true,         // true to enable speech generation
-        braille: true,        // true to enable Braille generation
-        assistiveMml: true,  // true to enable assistive MathML
-      }
-    }
-  }, 
-  startup: {
-    ready: () => {
-      MathJax.startup.defaultReady();
-      MathJax.startup.promise.then(() => {
-        window.initEnhancedZoomExpressionDialog();
-      });
-    }
-  }
-};
-  </script>
-  <script class="show" defer src="https://cdn.jsdelivr.net/npm/mathjax@4/tex-chtml.js"></script>
+        MathJax = {
+            tex: { inlineMath: { '[+]': [['$', '$']] } },
+            options: {
+                menuOptions: {
+                    settings: {
+                        enrich: false,         // true to enable semantic-enrichment
+                        collapsible: false,   // true to enable collapsible math
+                        speech: true,         // true to enable speech generation
+                        braille: true,        // true to enable Braille generation
+                        assistiveMml: true,  // true to enable assistive MathML
+                    }
+                }
+            },
+            startup: {
+                ready: () => {
+                    MathJax.startup.defaultReady();
+                    MathJax.startup.promise.then(() => {
+                        window.initEnhancedZoomExpressionDialog();
+                    });
+                }
+            }
+        };
+    </script>
+    <script class="show" defer src="https://cdn.jsdelivr.net/npm/mathjax@4/tex-chtml.js"></script>
 </head>
+
 <body>
     <h1>TikZ Render Service Demo</h1>
-    
+
     <p>Enter your TikZ code below:</p>
-    
+
     <textarea id="tikzInput">\begin{tikzpicture}
   % Draw axes
   \draw[->] (-0.5,0) -- (4.5,0) node[right] {$x$};
@@ -161,28 +180,29 @@
   % Add labels
   \node at (2, -2) {Sample TikZ Diagram};
 \end{tikzpicture}</textarea>
-    
+
     <div style="margin-bottom: 15px;">
         <label for="exampleSelect"><strong>Load Example:</strong></label>
         <select id="exampleSelect" style="margin-left: 10px; padding: 5px; font-size: 14px;">
             <!-- Options populated by JavaScript -->
         </select>
-        <button type="button" onclick="loadExample()" style="margin-left: 10px; padding: 5px 15px;">Load Example</button>
+        <button type="button" onclick="loadExample()" style="margin-left: 10px; padding: 5px 15px;">Load
+            Example</button>
     </div>
-    
+
     <div class="checkbox-container">
         <label>
             <input type="checkbox" id="generateDescriptions" checked>
             Generate AI accessibility descriptions (requires API key)
         </label>
     </div>
-    
+
     <div>
         <button type="button" id="svgButton" onclick="render('svg')">Render as SVG</button>
         <button type="button" id="pngButton" onclick="render('png')">Render as PNG</button>
         <button type="button" onclick="toggleDebug()">Toggle Debug Info</button>
     </div>
-    
+
     <div id="error"></div>
     <div id="debug"></div>
     <div id="result"></div>
@@ -481,13 +501,13 @@
     \\node[anchor=south] at (current bounding box.north) {$B - A$};
 \\end{tikzpicture}`}
         ];
-        
+
         const API_URL = 'http://localhost:3010/api/render';
         const DESCRIBE_URL = 'http://localhost:3010/api/describe';
         let isRendering = false;
-        
+
         // Detect unexpected page reloads
-        window.addEventListener('beforeunload', function(e) {
+        window.addEventListener('beforeunload', function (e) {
             if (isRendering) {
                 console.error('WARNING: Page is reloading during render!');
                 const message = 'Rendering in progress. Are you sure you want to leave?';
@@ -495,7 +515,7 @@
                 return message;
             }
         });
-        
+
         function log(message) {
             const debugDiv = document.getElementById('debug');
             const timestamp = new Date().toISOString();
@@ -505,20 +525,26 @@
             debugDiv.scrollTop = debugDiv.scrollHeight;
             console.log(timestamp, message);
         }
-        
+
         function toggleDebug() {
             const debugDiv = document.getElementById('debug');
             debugDiv.style.display = debugDiv.style.display === 'none' ? 'block' : 'none';
         }
-        
+
         function setButtonsEnabled(enabled) {
             document.getElementById('svgButton').disabled = !enabled;
             document.getElementById('pngButton').disabled = !enabled;
         }
-        
+
+
+
+
+
+
+
         async function generateDescriptions(tikzCode, imageBase64, format) {
             log('Generating AI descriptions...');
-            
+
             try {
                 const response = await fetch(DESCRIBE_URL, {
                     method: 'POST',
@@ -531,30 +557,49 @@
                         format: format
                     })
                 });
-                
+
                 if (!response.ok) {
                     const error = await response.json();
                     throw new Error(error.error || 'Description generation failed');
                 }
-                
-                const descriptions = await response.json();
-                if (descriptions) {
-                    if (descriptions.cached) {
-                        log('AI descriptions retrieved from cache');
-                    } else {
-                        log('AI descriptions freshly generated');
-                    }
+
+                // Parse plain text response
+                const text = await response.text();
+
+                // Split on the first blank line only
+                const firstBlankLineMatch = text.match(/\n\s*\n/);
+
+                if (!firstBlankLineMatch) {
+                    throw new Error('Invalid description format received from server');
                 }
+
+                const splitIndex = firstBlankLineMatch.index + firstBlankLineMatch[0].length;
+
+                const descriptions = {
+                    altText: text.substring(0, firstBlankLineMatch.index).trim(),
+                    longDescription: text.substring(splitIndex).trim()
+                };
+
+                // Check cache status from header
+                const cacheStatus = response.headers.get('X-Cache');
+                if (cacheStatus === 'HIT') {
+                    log('AI descriptions retrieved from cache');
+                } else {
+                    log('AI descriptions freshly generated');
+                }
+
                 log('AI descriptions generated successfully');
                 log('Alt text: ' + descriptions.altText);
-                
+
                 return descriptions;
             } catch (error) {
                 log('Description generation failed: ' + error.message);
                 return null;
             }
         }
-        
+
+
+
         function blobToBase64(blob) {
             return new Promise((resolve, reject) => {
                 const reader = new FileReader();
@@ -567,44 +612,44 @@
                 reader.readAsDataURL(blob);
             });
         }
-        
+
         async function render(format) {
             // Prevent multiple simultaneous renders
             if (isRendering) {
                 log('Already rendering, please wait...');
                 return false;
             }
-            
+
             isRendering = true;
             setButtonsEnabled(false);
-            
+
             const renderStartTime = Date.now();
-            
+
             log('=== RENDER STARTED ===');
             log('Render function called with format: ' + format);
-            
+
             const tikzCode = document.getElementById('tikzInput').value;
             const generateDesc = document.getElementById('generateDescriptions').checked;
             const resultDiv = document.getElementById('result');
             const errorDiv = document.getElementById('error');
             const debugDiv = document.getElementById('debug');
-            
+
             // Clear previous results
             resultDiv.innerHTML = '<p class="loading">Rendering... Please wait, this may take up to 30 seconds for complex diagrams.</p>';
             errorDiv.textContent = '';
             debugDiv.style.display = 'block';
-            
+
             log('Format: ' + format);
             log('Generate descriptions: ' + generateDesc);
             log('TikZ code length: ' + tikzCode.length + ' characters');
             log('First 100 chars: ' + tikzCode.substring(0, 100));
-            
+
             try {
                 log('Making fetch request to: ' + API_URL);
                 log('Current timestamp: ' + Date.now());
-                
+
                 const startTime = Date.now();
-                
+
                 const response = await fetch(API_URL, {
                     method: 'POST',
                     headers: {
@@ -618,7 +663,7 @@
                     log('FETCH FAILED: ' + err.name + ' - ' + err.message);
                     throw err;
                 });
-                
+
                 const elapsed = Date.now() - startTime;
                 log('Response received after ' + elapsed + 'ms');
                 log('Response status: ' + response.status + ' ' + response.statusText);
@@ -626,7 +671,7 @@
                 response.headers.forEach((value, key) => {
                     log('  ' + key + ': ' + value);
                 });
-                
+
                 if (!response.ok) {
                     const errorText = await response.text();
                     log('Error response body: ' + errorText);
@@ -642,26 +687,26 @@
                     }
                     throw new Error(errorMessage);
                 }
-                
+
                 log('Converting response to blob...');
                 const blob = await response.blob();
                 log('Blob created - size: ' + blob.size + ' bytes, type: ' + blob.type);
-                
+
                 if (blob.size === 0) {
                     throw new Error('Received empty response from server');
                 }
-                
+
                 log('Creating object URL...');
                 const imageUrl = URL.createObjectURL(blob);
                 log('Object URL created: ' + imageUrl);
-                
+
                 const cacheStatus = response.headers.get('X-Cache');
                 const cacheNote = cacheStatus === 'HIT' ? ' (from cache)' : ' (freshly rendered)';
-                
+
                 // Time checkpoint: TikZ rendering and image display complete
                 const tikzRenderTime = Date.now() - renderStartTime;
                 log('*** TikZ RENDER & IMAGE DISPLAY TIME: ' + tikzRenderTime + 'ms (' + (tikzRenderTime / 1000).toFixed(2) + ' seconds) ***');
-                
+
                 // Generate AI descriptions if enabled
                 let descriptions = null;
                 const aiDescStartTime = Date.now();
@@ -670,17 +715,17 @@
                     const imageBase64 = await blobToBase64(blob);
                     descriptions = await generateDescriptions(tikzCode, imageBase64, format);
                 }
-                
+
                 // Time checkpoint: AI descriptions complete
                 if (generateDesc) {
                     const aiDescTime = Date.now() - aiDescStartTime;
                     log('*** AI DESCRIPTION GENERATION TIME: ' + aiDescTime + 'ms (' + (aiDescTime / 1000).toFixed(2) + ' seconds) ***');
                 }
-                
+
                 log('Displaying image...');
-                
+
                 const altText = descriptions ? descriptions.altText : 'Rendered TikZ diagram';
-                
+
                 if (format === 'svg') {
                     const text = await blob.text();
                     log('SVG text length: ' + text.length + ' characters');
@@ -728,9 +773,9 @@
                         ` : ''}
                     `;
                 }
-                
+
                 log('Image displayed successfully!');
-                
+
                 // Typeset math in the newly inserted content
                 if (descriptions && window.MathJax) {
                     log('Typesetting math with MathJax...');
@@ -740,9 +785,9 @@
                         log('MathJax error: ' + err.message);
                     });
                 }
-                
+
                 log('=== RENDER COMPLETED SUCCESSFULLY ===');
-                
+
             } catch (error) {
                 log('!!! ERROR OCCURRED !!!');
                 log('Error type: ' + error.name);
@@ -756,41 +801,41 @@
             } finally {
                 isRendering = false;
                 setButtonsEnabled(true);
-                
+
                 const totalElapsed = Date.now() - renderStartTime;
                 log('Buttons re-enabled, ready for next render');
                 log('*** TOTAL TIME (TikZ Render + AI Descriptions + Display): ' + totalElapsed + 'ms (' + (totalElapsed / 1000).toFixed(2) + ' seconds) ***');
                 log('==============================================');
             }
-            
+
             return false;
         }
-        
+
         function escapeHtml(text) {
             const div = document.createElement('div');
             div.textContent = text;
             return div.innerHTML;
         }
-        
+
         function formatHtmlSource(html) {
             // Add newlines and basic indentation to HTML for readability
             let formatted = html;
-            
+
             // Add newlines after opening tags (except inline elements)
             formatted = formatted.replace(/(<(?:p|div|ul|ol|li|table|tr|td|th|details|summary)[^>]*>)/gi, '$1\n  ');
-            
+
             // Add newlines before closing tags
             formatted = formatted.replace(/(<\/(?:p|div|ul|ol|li|table|tr|td|th|details|summary)>)/gi, '\n$1\n');
-            
+
             // Clean up multiple newlines
             formatted = formatted.replace(/\n\s*\n\s*\n/g, '\n\n');
-            
+
             // Trim
             formatted = formatted.trim();
-            
+
             return formatted;
         }
-        
+
         function populateExamplesDropdown() {
             const select = document.getElementById('exampleSelect');
             tikzExamples.forEach((example, index) => {
@@ -800,26 +845,26 @@
                 select.appendChild(option);
             });
         }
-        
+
         function loadExample() {
             const select = document.getElementById('exampleSelect');
             const selectedIndex = select.value;
             const example = tikzExamples[selectedIndex];
-            
+
             if (example) {
                 document.getElementById('tikzInput').value = example.code;
                 log('Loaded example: ' + example.title);
             }
         }
-        
+
         // Test connection on page load
         window.addEventListener('load', async () => {
             log('Page loaded at: ' + new Date().toISOString());
             log('User agent: ' + navigator.userAgent);
-            
+
             // Populate examples dropdown
             populateExamplesDropdown();
-            
+
             try {
                 log('Testing connection to server...');
                 const response = await fetch('http://localhost:3010/api/health');
@@ -839,13 +884,14 @@
                 log('Make sure the server is running on port 3010');
             }
         });
-        
+
         // Log if page visibility changes
         document.addEventListener('visibilitychange', () => {
             log('Page visibility changed: ' + document.visibilityState);
         });
-        
+
         console.log('TikZ Demo page initialized');
     </script>
 </body>
+
 </html>

@@ -13,12 +13,12 @@ async function generateDescription(tikzCode, imageBase64, format) {
   const prompt = `You are an accessibility expert helping to generate descriptions for TikZ diagrams following the NWEA Image Description Guidelines for Assessments.
 
 Given the TikZ LaTeX code and the rendered image, generate:
-1. A short alt-text (maximum 150 characters) suitable for the HTML alt attribute with mathematical expressions as speech text
+1. A short alt-text (maximum 175 characters) suitable for the HTML alt attribute with mathematical expressions as speech text. Mathematical expressions should be kept to a minimum in the alt-text, focusing on key elements only.
 2. A longer, detailed HTML description for first year university students with visual impairments using screen readers wth mathematical expressions in LaTeX format
 3. Note: Students do not see the TikZ code, only the rendered image. If the image does not contain the formula(s) represented in the TikZ code, base your descriptions solely on the image content.
 
 ⚠️ CRITICAL REQUIREMENT - Mathematical Content in the altText MUST Be Speech Text:
-In the alt-text, all symbols, Greek letters, operators, and mathematical relationships must be linearized into speech text suitable for screen readers. This is MANDATORY for accessibility.
+In the alt-text, all symbols, Greek letters, operators, and mathematical relationships must be linearized into speech text suitable for screen readers. This is MANDATORY for accessibility. Keep mathematical expressions to a minimum in the alt-text, focusing on key elements only.
 
 Examples of CORRECT LaTeX usage in the altText:
 ✓ "f of x equals x squared" NOT "f(x) = x^2"
@@ -29,9 +29,10 @@ Examples of CORRECT LaTeX usage in the altText:
 ✓ "f of x is equal to sine of x" NOT "f(x) = sin(x)"
 ✓ "f of x is equal to, e raised to the negative x power" NOT "f(x) = e^{-x}"
 ✓ "angle of 45 degrees" NOT "angle of 45°"
-✓ "the fraction with numerator; a plus b; and denominator c; end fraction" NOT "(a + b) / c"
+✓ "the fraction with numerator; a minus b; and denominator c; end fraction" NOT "(a - b) / c"
 ✓ "f of x is equal to, the cube root of x, end root; plus 5" NOT "f(x) = ∛x + 5"
 ✓ "f of x is equal to x times the absolute value of x end absolute value" NOT "f(x) = x |x|"
+✓ "complement of A intersect B" NOT "Ā ∩ B"
 
 ⚠️ CRITICAL REQUIREMENT - Mathematical Content in the longDescription MUST Use LaTeX:
 ALL mathematical expressions, variables, numbers paired with variables, coordinates, equations, inequalities, formulas, Greek letters, and any symbolic math notation MUST be written in LaTeX using \\(...\\) for inline math. Screen readers cannot properly interpret plain text math - this is MANDATORY for accessibility.
@@ -68,7 +69,7 @@ Implementation Requirements:
 
 Alt-text Guidelines:
 - Concise but descriptive identification of the diagram type and primary content
-- Plain text is acceptable in alt-text (LaTeX requirement applies to long description only)
+- Keep to a maximum of 175 characters
 
 Long Description Guidelines:
 - Written for first year university STEM students
@@ -77,17 +78,27 @@ Long Description Guidelines:
 - ⚠️ MANDATORY: All mathematical expressions must use LaTeX \\(...\\) notation for screen reader compatibility
 - Focus on what is shown, not what conclusions to draw
 
-Respond in this exact JSON format (don't worry about escaping backslashes - that will be handled automatically):
-{
-  "altText": "short description here",
-  "longDescription": "<p>Detailed HTML description here with LaTeX like \\(x = 0\\). Use normal backslashes.</p>"
-}
+RESPONSE FORMAT:
+Return your response in this exact format:
+- First line: The alt-text (plain text, no special formatting)
+- Second line: Completely blank
+- Third line onwards: The HTML long description (can span multiple lines)
+
+DO NOT use JSON. DO NOT wrap in code blocks. Just output:
+[alt text here]
+
+[HTML long description here, with LaTeX like \\(x = 0\\) using single backslashes]
+
+Example response:
+Five Venn diagrams showing different set operations between two overlapping circles labeled A and B
+
+<p>Five Venn diagrams arranged horizontally, each showing different set operations between two overlapping circles labeled \\(A\\) and \\(B\\). Each diagram has a title above indicating the set operation being illustrated.</p>
+<p><strong>First diagram:</strong> Titled \\(A \\cap B\\). Shows two overlapping circles where only the intersection region is shaded blue.</p>
 
 TikZ Code:
 \`\`\`latex
 ${tikzCode}
 \`\`\``;
-
 
 
   const message = await anthropic.messages.create({
@@ -114,40 +125,39 @@ ${tikzCode}
     ],
   });
 
-  const responseText = message.content[0].text;
+ const responseText = message.content[0].text.trim();
   
-  // Extract JSON from response (handle markdown code blocks if present)
-  let jsonMatch = responseText.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) {
-    throw new Error('Failed to parse LLM response');
+  // Split on the first blank line only
+  const firstBlankLineMatch = responseText.match(/\n\s*\n/);
+
+  if (!firstBlankLineMatch) {
+    throw new Error('Invalid response format - expected alt-text, blank line, then HTML description');
   }
 
-  let jsonString = jsonMatch[0];
+  const splitIndex = firstBlankLineMatch.index + firstBlankLineMatch[0].length;
+
+  let altText = responseText.substring(0, firstBlankLineMatch.index).trim();
+  let longDescription = responseText.substring(splitIndex).trim();
   
-  // Pre-process to properly escape backslashes for JSON parsing
-  // This handles LaTeX notation like \( which needs to become \\( in JSON
-  jsonString = jsonString.replace(/\\/g, '\\\\');
-  
-  const descriptions = JSON.parse(jsonString);
-  
-  // Validate and truncate alt-text if needed trying to break at a space
-if (descriptions.altText.length > 200) {
-    // Look for last space in the range 180-200
+  // Validate and truncate alt-text if needed, trying to break at a space
+  if (altText.length > 200) {
     const searchStart = 180;
     const searchEnd = 200;
-    const substring = descriptions.altText.substring(searchStart, searchEnd);
+    const substring = altText.substring(searchStart, searchEnd);
     const lastSpaceInRange = substring.lastIndexOf(' ');
     
     if (lastSpaceInRange !== -1) {
-        const truncateAt = searchStart + lastSpaceInRange;
-        descriptions.altText = descriptions.altText.substring(0, truncateAt) + '...';
+      const truncateAt = searchStart + lastSpaceInRange;
+      altText = altText.substring(0, truncateAt) + '...';
     } else {
-        // No space found in range, use character limit
-        descriptions.altText = descriptions.altText.substring(0, 197) + '...';
+      altText = altText.substring(0, 197) + '...';
     }
-}
+  }
 
-  return descriptions;
+  return {
+    altText,
+    longDescription
+  };
 }
 
 module.exports = { generateDescription };

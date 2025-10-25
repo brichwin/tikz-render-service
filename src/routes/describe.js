@@ -30,10 +30,11 @@ router.post('/', async (req, res, next) => {
     const cached = cacheService.get(cacheKey);
     if (cached) {
       console.log('Description cache HIT');
-      return res.json({
-        ...cached,
-        cached: true
-      });
+      
+      // Return as plain text with cache header
+      res.set('Content-Type', 'text/plain; charset=utf-8');
+      res.set('X-Cache', 'HIT');
+      return res.send(`${cached.altText}\n\n${cached.longDescription}`);
     }
 
     console.log('Description cache MISS - generating...');
@@ -45,10 +46,10 @@ router.post('/', async (req, res, next) => {
     console.log('Description generated and cached successfully');
     console.log('Alt text length:', descriptions.altText.length);
     
-    res.json({
-      ...descriptions,
-      cached: false
-    });
+    // Return as plain text with cache header
+    res.set('Content-Type', 'text/plain; charset=utf-8');
+    res.set('X-Cache', 'MISS');
+    res.send(`${descriptions.altText}\n\n${descriptions.longDescription}`);
 
   } catch (error) {
     console.error('Description generation error:', error);
