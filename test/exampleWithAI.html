@@ -572,75 +572,6 @@
             document.getElementById('pngButton').disabled = !enabled;
         }
 
-        async function generateDescriptions(tikzCode, imageBase64, format) {
-            log('Generating AI descriptions...');
-
-            try {
-                const response = await fetch(DESCRIBE_URL, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        tikzCode: tikzCode,
-                        imageBase64: imageBase64,
-                        format: format
-                    })
-                });
-
-                if (!response.ok) {
-                    const error = await response.json();
-                    throw new Error(error.error || 'Description generation failed');
-                }
-
-                // Parse plain text response
-                const text = await response.text();
-
-                // Split on the first blank line only
-                const firstBlankLineMatch = text.match(/\n\s*\n/);
-
-                if (!firstBlankLineMatch) {
-                    throw new Error('Invalid description format received from server');
-                }
-
-                const splitIndex = firstBlankLineMatch.index + firstBlankLineMatch[0].length;
-
-                const descriptions = {
-                    altText: text.substring(0, firstBlankLineMatch.index).trim(),
-                    longDescription: text.substring(splitIndex).trim()
-                };
-
-                // Check cache status from header
-                const cacheStatus = response.headers.get('X-Cache');
-                if (cacheStatus === 'HIT') {
-                    log('AI descriptions retrieved from cache');
-                } else {
-                    log('AI descriptions freshly generated');
-                }
-
-                log('AI descriptions generated successfully');
-                log('Alt text: ' + descriptions.altText);
-
-                return descriptions;
-            } catch (error) {
-                log('Description generation failed: ' + error.message);
-                return null;
-            }
-        }
-
-        function blobToBase64(blob) {
-            return new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                reader.onloadend = () => {
-                    // Remove the data URL prefix (e.g., "data:image/svg+xml;base64,")
-                    const base64 = reader.result.split(',')[1];
-                    resolve(base64);
-                };
-                reader.onerror = reject;
-                reader.readAsDataURL(blob);
-            });
-        }
-
         async function render(format) {
             // Prevent multiple simultaneous renders
             if (isRendering) {
@@ -735,46 +666,17 @@
                 const tikzRenderTime = Date.now() - renderStartTime;
                 log('*** TikZ RENDER & IMAGE DISPLAY TIME: ' + tikzRenderTime + 'ms (' + (tikzRenderTime / 1000).toFixed(2) + ' seconds) ***');
 
-                // Generate AI descriptions if enabled
-                let descriptions = null;
-                const aiDescStartTime = Date.now();
-                if (generateDesc) {
-                    log('Converting blob to base64 for description generation...');
-                    const imageBase64 = await blobToBase64(blob);
-                    descriptions = await generateDescriptions(tikzCode, imageBase64, format);
-                }
-
-                // Time checkpoint: AI descriptions complete
-                if (generateDesc) {
-                    const aiDescTime = Date.now() - aiDescStartTime;
-                    log('*** AI DESCRIPTION GENERATION TIME: ' + aiDescTime + 'ms (' + (aiDescTime / 1000).toFixed(2) + ' seconds) ***');
-                }
-
-                log('Displaying image...');
-
-                const altText = descriptions ? descriptions.altText : 'Rendered TikZ diagram';
+                // Display image immediately with placeholder alt text
+                log('Displaying image immediately...');
+                const placeholderAltText = 'Rendered TikZ diagram';
 
                 if (format === 'svg') {
                     const text = await blob.text();
                     log('SVG text length: ' + text.length + ' characters');
                     resultDiv.innerHTML = `
                         <p>Result${cacheNote}:</p>
-                        <img src="${imageUrl}" alt="${escapeHtml(altText)}" style="max-width: 100%; border: 1px solid #ddd;" onload="console.log('Image loaded successfully')">
-                        ${descriptions ? `
-                        <div class="description-section">
-                            <h4>AI-Generated Accessibility Descriptions</h4>
-                            <p><strong>Alt Text (for screen readers):</strong></p>
-                            <div class="alt-text">${escapeHtml(descriptions.altText)}</div>
-                            <details>
-                                <summary>Long Description</summary>
-                                <div style="padding: 10px;">${descriptions.longDescription}</div>
-                            </details>
-                            <details>
-                                <summary>View Long Description Source</summary>
-                                <pre class="long-desc-source">${escapeHtml(formatHtmlSource(descriptions.longDescription))}</pre>
-                            </details>
-                        </div>
-                        ` : ''}
+                        <img src="${imageUrl}" alt="${escapeHtml(placeholderAltText)}" style="max-width: 100%; border: 1px solid #ddd;" onload="console.log('Image loaded successfully')">
+                        ${generateDesc ? '<div id="ai-descriptions-placeholder" class="description-section"><p><em>Generating AI accessibility descriptions...</em></p></div>' : ''}
                         <details style="margin-top: 10px;">
                             <summary>View SVG source</summary>
                             <pre style="text-align: left; overflow-x: auto; background: #f5f5f5; padding: 10px;">${escapeHtml(text)}</pre>
@@ -783,34 +685,64 @@
                 } else {
                     resultDiv.innerHTML = `
                         <p>Result${cacheNote}:</p>
-                        <img src="${imageUrl}" alt="${escapeHtml(altText)}" style="max-width: 100%; border: 1px solid #ddd;" onload="console.log('Image loaded successfully')">
-                        ${descriptions ? `
-                        <div class="description-section">
-                            <h4>AI-Generated Accessibility Descriptions</h4>
-                            <p><strong>Alt Text (for screen readers):</strong></p>
-                            <div class="alt-text">${escapeHtml(descriptions.altText)}</div>
-                            <details>
-                                <summary>Long Description</summary>
-                                <div style="padding: 10px;">${descriptions.longDescription}</div>
-                            </details>
-                            <details>
-                                <summary>View Long Description Source</summary>
-                                <pre class="long-desc-source">${escapeHtml(formatHtmlSource(descriptions.longDescription))}</pre>
-                            </details>
-                        </div>
-                        ` : ''}
+                        <img src="${imageUrl}" alt="${escapeHtml(placeholderAltText)}" style="max-width: 100%; border: 1px solid #ddd;" onload="console.log('Image loaded successfully')">
+                        ${generateDesc ? '<div id="ai-descriptions-placeholder" class="description-section"><p><em>Generating AI accessibility descriptions...</em></p></div>' : ''}
                     `;
                 }
 
                 log('Image displayed successfully!');
 
-                // Typeset math in the newly inserted content
-                if (descriptions && window.MathJax) {
-                    log('Typesetting math with MathJax...');
-                    MathJax.typesetPromise([resultDiv]).then(() => {
-                        log('MathJax typesetting complete');
-                    }).catch((err) => {
-                        log('MathJax error: ' + err.message);
+                // Generate AI descriptions asynchronously if enabled
+                if (generateDesc) {
+                    log('Starting AI description generation in background...');
+                    const aiDescStartTime = Date.now();
+                    
+                    // Generate descriptions asynchronously
+                    generateDescriptions(blob, format, tikzCode).then(descriptions => {
+                        const aiDescTime = Date.now() - aiDescStartTime;
+                        log('*** AI DESCRIPTION GENERATION TIME: ' + aiDescTime + 'ms (' + (aiDescTime / 1000).toFixed(2) + ' seconds) ***');
+                        
+                        // Update the placeholder with actual descriptions
+                        const placeholder = document.getElementById('ai-descriptions-placeholder');
+                        if (placeholder && descriptions) {
+                            placeholder.innerHTML = `
+                                <h4>AI-Generated Accessibility Descriptions</h4>
+                                <p><strong>Alt Text (for screen readers):</strong></p>
+                                <div class="alt-text">${escapeHtml(descriptions.altText)}</div>
+                                <details>
+                                    <summary>Long Description</summary>
+                                    <div style="padding: 10px;">${descriptions.longDescription}</div>
+                                </details>
+                                <details>
+                                    <summary>View Long Description Source</summary>
+                                    <pre class="long-desc-source">${escapeHtml(formatHtmlSource(descriptions.longDescription))}</pre>
+                                </details>
+                            `;
+                            
+                            // Update the image alt text
+                            const img = resultDiv.querySelector('img');
+                            if (img) {
+                                img.alt = descriptions.altText;
+                            }
+                            
+                            // Typeset math in the newly inserted content
+                            if (window.MathJax) {
+                                log('Typesetting math with MathJax...');
+                                MathJax.typesetPromise([placeholder]).then(() => {
+                                    log('MathJax typesetting complete');
+                                }).catch((err) => {
+                                    log('MathJax error: ' + err.message);
+                                });
+                            }
+                        } else if (placeholder) {
+                            placeholder.innerHTML = '<p><em>Failed to generate AI descriptions. See debug log for details.</em></p>';
+                        }
+                    }).catch(error => {
+                        log('AI description generation failed: ' + error.message);
+                        const placeholder = document.getElementById('ai-descriptions-placeholder');
+                        if (placeholder) {
+                            placeholder.innerHTML = '<p><em>Failed to generate AI descriptions. See debug log for details.</em></p>';
+                        }
                     });
                 }
 
@@ -832,11 +764,83 @@
 
                 const totalElapsed = Date.now() - renderStartTime;
                 log('Buttons re-enabled, ready for next render');
-                log('*** TOTAL TIME (TikZ Render + AI Descriptions + Display): ' + totalElapsed + 'ms (' + (totalElapsed / 1000).toFixed(2) + ' seconds) ***');
+                log('*** TOTAL TIME (TikZ Render + Display): ' + totalElapsed + 'ms (' + (totalElapsed / 1000).toFixed(2) + ' seconds) ***');
                 log('==============================================');
             }
 
             return false;
+        }
+
+        async function generateDescriptions(blob, format, tikzCode) {
+            log('Generating AI descriptions...');
+
+            try {
+                log('Converting blob to base64 for description generation...');
+                const imageBase64 = await blobToBase64(blob);
+                
+                const response = await fetch(DESCRIBE_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        tikzCode: tikzCode,
+                        imageBase64: imageBase64,
+                        format: format
+                    })
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.error || 'Description generation failed');
+                }
+
+                // Parse plain text response
+                const text = await response.text();
+
+                // Split on the first blank line only
+                const firstBlankLineMatch = text.match(/\n\s*\n/);
+
+                if (!firstBlankLineMatch) {
+                    throw new Error('Invalid description format received from server');
+                }
+
+                const splitIndex = firstBlankLineMatch.index + firstBlankLineMatch[0].length;
+
+                const descriptions = {
+                    altText: text.substring(0, firstBlankLineMatch.index).trim(),
+                    longDescription: text.substring(splitIndex).trim()
+                };
+
+                // Check cache status from header
+                const cacheStatus = response.headers.get('X-Cache');
+                if (cacheStatus === 'HIT') {
+                    log('AI descriptions retrieved from cache');
+                } else {
+                    log('AI descriptions freshly generated');
+                }
+
+                log('AI descriptions generated successfully');
+                log('Alt text: ' + descriptions.altText);
+
+                return descriptions;
+            } catch (error) {
+                log('Description generation failed: ' + error.message);
+                throw error;
+            }
+        }
+
+        function blobToBase64(blob) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onloadend = () => {
+                    // Remove the data URL prefix (e.g., "data:image/svg+xml;base64,")
+                    const base64 = reader.result.split(',')[1];
+                    resolve(base64);
+                };
+                reader.onerror = reject;
+                reader.readAsDataURL(blob);
+            });
         }
 
         function escapeHtml(text) {
