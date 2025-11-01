@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TikZ Render Demo</title>
+    <title>TikZ/PGFPlots Render Service</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -157,7 +157,7 @@
 </head>
 
 <body>
-    <h1>TikZ Render Service Demo</h1>
+    <h1>TikZ/PGFPlots Render Service</h1>
 
     <p>Enter your TikZ code below:</p>
 
@@ -200,6 +200,7 @@
     <div>
         <button type="button" id="svgButton" onclick="render('svg')">Render as SVG</button>
         <button type="button" id="pngButton" onclick="render('png')">Render as PNG</button>
+        <button type="button" id="downloadButton" onclick="downloadImage()" disabled>Download Image</button>
         <button type="button" onclick="toggleDebug()">Toggle Debug Info</button>
     </div>
 
@@ -541,6 +542,8 @@
         const API_URL = 'http://localhost:3010/api/render';
         const DESCRIBE_URL = 'http://localhost:3010/api/describe';
         let isRendering = false;
+        let currentImageUrl = null;
+        let currentFormat = null;
 
         // Detect unexpected page reloads
         window.addEventListener('beforeunload', function (e) {
@@ -570,6 +573,30 @@
         function setButtonsEnabled(enabled) {
             document.getElementById('svgButton').disabled = !enabled;
             document.getElementById('pngButton').disabled = !enabled;
+            // Download button state is managed separately
+        }
+
+        function setDownloadButtonEnabled(enabled) {
+            document.getElementById('downloadButton').disabled = !enabled;
+        }
+
+        function downloadImage() {
+            if (!currentImageUrl || !currentFormat) {
+                log('No image available for download');
+                return;
+            }
+
+            log('Downloading image as graphic.' + currentFormat);
+            
+            // Create a temporary anchor element for download
+            const link = document.createElement('a');
+            link.href = currentImageUrl;
+            link.download = 'graphic.' + currentFormat;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+            log('Download initiated');
         }
 
         async function render(format) {
@@ -581,6 +608,14 @@
 
             isRendering = true;
             setButtonsEnabled(false);
+            setDownloadButtonEnabled(false);
+
+            // Clear previous image data
+            if (currentImageUrl) {
+                URL.revokeObjectURL(currentImageUrl);
+                currentImageUrl = null;
+                currentFormat = null;
+            }
 
             const renderStartTime = Date.now();
 
@@ -659,6 +694,11 @@
                 const imageUrl = URL.createObjectURL(blob);
                 log('Object URL created: ' + imageUrl);
 
+                // Store for download functionality
+                currentImageUrl = imageUrl;
+                currentFormat = format;
+                setDownloadButtonEnabled(true);
+
                 const cacheStatus = response.headers.get('X-Cache');
                 const cacheNote = cacheStatus === 'HIT' ? ' (from cache)' : ' (freshly rendered)';
 
@@ -691,6 +731,7 @@
                 }
 
                 log('Image displayed successfully!');
+                log('Download button enabled - ready to download as graphic.' + format);
 
                 // Generate AI descriptions asynchronously if enabled
                 if (generateDesc) {
@@ -896,6 +937,9 @@
 
             // Populate examples dropdown
             populateExamplesDropdown();
+
+            // Ensure download button starts disabled
+            setDownloadButtonEnabled(false);
 
             try {
                 log('Testing connection to server...');
