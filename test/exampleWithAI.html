@@ -499,7 +499,43 @@
     \\draw[outline] \\firstcircle node {$A$}
                    \\secondcircle;
     \\node[anchor=south] at (current bounding box.north) {$B - A$};
-\\end{tikzpicture}`}
+\\end{tikzpicture}`}, {
+    title: 'Limit with discontinuity',
+    code: `\\pgfplotsset{compat=1.18}
+\\begin{tikzpicture}
+  \\begin{axis}[
+    width=10cm, height=6cm,
+    domain=-0.5:0.5,
+    samples=201,
+    axis lines=middle,
+    xmax=0.52, xmin=-0.52,
+    ymin=0.6, ymax=1.2,
+    xlabel={$x$},
+    ylabel={$f(x)$},
+    xlabel style={at={(axis description cs:0.98,0.1)},anchor=north east},
+    ylabel style={at={(axis description cs:0.02,0.98)},anchor=north west},
+    xtick={-0.5,-0.25,0,0.25,0.5},
+    ytick={0.6,0.8,1.0},
+    grid=both,
+    grid style={dashed,gray!30},
+    every axis plot/.append style={thick}
+  ]
+    % plot sin(x)/x (use sin(deg(x)) because PGF trig expects degrees)
+    \\addplot[domain=-0.5:-0.0005,blue] {sin(deg(x))/x};
+    \\addplot[domain=0.0005:0.5,blue]  {sin(deg(x))/x};
+
+    % horizontal line y = 1 (limit)
+    \\addplot[dashed, darkgray] {1};
+
+    % open circle to indicate removable discontinuity at x=0
+    \\node[draw=black, fill=white, circle, inner sep=1.6pt] at (axis cs:0,1) {};
+
+    % small annotation
+    \\node[anchor=west, font=\\footnotesize] at (axis cs:0.02,1.04) {limit $1$ as $x\\to0$};
+
+  \\end{axis}
+\\end{tikzpicture}
+`}
         ];
 
         const API_URL = 'http://localhost:3010/api/render';
@@ -535,12 +571,6 @@
             document.getElementById('svgButton').disabled = !enabled;
             document.getElementById('pngButton').disabled = !enabled;
         }
-
-
-
-
-
-
 
         async function generateDescriptions(tikzCode, imageBase64, format) {
             log('Generating AI descriptions...');
@@ -597,8 +627,6 @@
                 return null;
             }
         }
-
-
 
         function blobToBase64(blob) {
             return new Promise((resolve, reject) => {
