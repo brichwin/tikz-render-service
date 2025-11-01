@@ -11,6 +11,7 @@ async function compileLatex(tikzCode, hash) {
   const latexDoc = `
 \\documentclass[border=2pt]{standalone}
 \\usepackage{tikz}
+\\usepackage{pgfplots}
 \\usetikzlibrary{arrows,shapes,positioning,calc}
 \\begin{document}
 ${tikzCode}
