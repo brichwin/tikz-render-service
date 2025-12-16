@@ -22,6 +22,10 @@
             box-sizing: border-box;
         }
 
+        #customInstructions {
+            margin-bottom: 0;
+        }
+
         button {
             padding: 10px 20px;
             font-size: 16px;
@@ -219,10 +223,10 @@
 
     <div style="margin-bottom: 15px;">
         <label for="customInstructions"><strong>Additional instructions for AI (optional):</strong></label>
-        <textarea id="customInstructions" 
+        <textarea id="customInstructions" aria-describedby="instructionsDescription"
                   placeholder="Example: Focus on formative learning objectives, or emphasize assessment criteria, or describe for a specific audience..."
                   style="width: 100%; height: 80px; font-family: Arial, sans-serif; padding: 8px; margin-top: 5px; box-sizing: border-box; resize: vertical;"></textarea>
-        <small style="color: #666;">These instructions will be included in the AI prompt to guide description generation.</small>
+        <p id="instructionsDescription" style="margin-top: 0px; color: #333;">These instructions will be included in the AI prompt to guide description generation.</p>
     </div>
 
     <h2>Render Options</h2>
