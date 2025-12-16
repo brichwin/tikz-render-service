@@ -330,7 +330,13 @@ curl -X POST http://localhost:3010/api/describe \
 
 Health check endpoint that returns service status and statistics.
 
-**Response:**
+#### Example curl for health JSON 
+
+```bash
+curl -X GET http://localhost:3010/api/health
+```
+
+#### Response
 
 ```json
 {
