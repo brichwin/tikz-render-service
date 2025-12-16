@@ -822,7 +822,18 @@
                             let longDescHtml;
                             if (descriptions.outputFormat === 'md' && md) {
                                 log('Rendering Markdown description with markdown-it');
-                                longDescHtml = md.render(descriptions.longDescription);
+                                
+                                // Convert LaTeX delimiters to use $ instead of \( \) before markdown processing
+                                // This prevents markdown-it from escaping the backslashes
+                                let mdText = descriptions.longDescription;
+                                mdText = mdText.replace(/\\\(/g, '$');
+                                mdText = mdText.replace(/\\\)/g, '$');
+                                mdText = mdText.replace(/\\\[/g, '$$');
+                                mdText = mdText.replace(/\\\]/g, '$$');
+                                
+                                longDescHtml = md.render(mdText);
+                                
+                                log('Converted LaTeX delimiters and rendered Markdown');
                             } else {
                                 longDescHtml = descriptions.longDescription;
                             }
@@ -838,7 +849,7 @@
                                 </details>
                                 <details>
                                     <summary>View Long Description Source</summary>
-                                    <pre class="long-desc-source">${escapeHtml(descriptions.outputFormat === 'md' ? descriptions.longDescription : formatHtmlSource(descriptions.longDescription))}</pre>
+                                    <pre class="long-desc-source">${escapeHtml(descriptions.longDescription)}</pre>
                                 </details>
                             `;
                             
@@ -1084,7 +1095,6 @@
         });
 
         console.log('TikZ Demo page initialized');
-    </script>
-</body>
+    </script></body>
 
 </html>

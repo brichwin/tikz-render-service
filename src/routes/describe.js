@@ -7,24 +7,17 @@ const { generateHash } = require('../utils/fileManager');
 router.post('/', async (req, res, next) => {
   console.log('=== Description Request Received ===');
   
-  const { tikzCode, imageBase64, format = 'png' } = req.body;
+  const { tikzCode, imageBase64, format = 'png', outputFormat, customInstructions } = req.body;
 
   try {
-    if (!tikzCode || !imageBase64) {
+    if (!tikzCode || !imageBase64 || !format) {
       return res.status(400).json({ 
-        error: 'tikzCode and imageBase64 are required' 
+        error: 'Missing required fields: tikzCode, imageBase64, and format are required' 
       });
     }
 
-    if (!['svg', 'png'].includes(format)) {
-      return res.status(400).json({ 
-        error: 'format must be svg or png' 
-      });
-    }
-
-    // Create cache key based on TikZ code only
-    // (descriptions are the same regardless of image format)
-    const cacheKey = 'desc_' + generateHash(tikzCode);
+    // Generate cache key from inputs
+    const cacheKey = 'desc_' + generateHash(`${tikzCode}|${format}|${outputFormat || 'html'}|${customInstructions || ''}`);
     
     // Check cache first
     const cached = cacheService.get(cacheKey);
@@ -38,7 +31,13 @@ router.post('/', async (req, res, next) => {
     }
 
     console.log('Description cache MISS - generating...');
-    const descriptions = await generateDescription(tikzCode, imageBase64, format);
+    const descriptions = await generateDescription(
+      tikzCode, 
+      imageBase64, 
+      format,
+      outputFormat || 'html',
+      customInstructions || ''
+    );
     
     // Cache the descriptions
     cacheService.set(cacheKey, descriptions);

@@ -5,22 +5,74 @@ const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
 });
 
-async function generateDescription(tikzCode, imageBase64, format) {
+async function generateDescription(tikzCode, imageBase64, format, outputFormat = 'html', customInstructions = '') {
   if (!process.env.ANTHROPIC_API_KEY) {
     throw new Error('ANTHROPIC_API_KEY not configured');
   }
+
+  // Determine the format-specific instructions
+  const formatInstructions = outputFormat === 'md' 
+    ? `⚠️ CRITICAL REQUIREMENT - Mathematical Content in the longDescription MUST Use LaTeX:
+ALL mathematical expressions, variables, numbers paired with variables, coordinates, equations, inequalities, formulas, Greek letters, and any symbolic math notation MUST be written in LaTeX using \\(...\\) for inline math or \\[...\\] for displayed block equations. Screen readers cannot properly interpret plain text math - this is MANDATORY for accessibility.
+
+The long description must be formatted in **Markdown** with proper headings, lists, and emphasis. Use Markdown syntax for structure.
+
+Examples of CORRECT LaTeX usage in Markdown long descriptions:
+✓ "starts at the origin \\((0, 0)\\)" NOT "starts at the origin (0, 0)"
+✓ "maximum y-value of approximately \\(2\\) at \\(x \\approx 1.5\\)" NOT "maximum y-value of approximately 2 at x ≈ 1.5"  
+✓ "decreases back through \\(y = 0\\) at approximately \\(x = 3.1\\)" NOT "decreases back through y = 0 at approximately x = 3.1"
+✓ "continues to approximately \\(y = -1.5\\) at \\(x = 4\\)" NOT "continues to approximately y = -1.5 at x = 4"
+✓ "curve \\(f(x) = \\sin(x)\\)" NOT "curve f(x) = sin(x)"
+
+Use \\[...\\] only for displayed block equations that should be centered on their own line.
+
+Markdown formatting examples:
+- Use **bold** for emphasis
+- Use \`code\` for literal text
+- Use ## for section headings
+- Use - or 1. for lists
+- Use > for blockquotes if needed`
+    : `⚠️ CRITICAL REQUIREMENT - Mathematical Content in the longDescription MUST Use LaTeX:
+ALL mathematical expressions, variables, numbers paired with variables, coordinates, equations, inequalities, formulas, Greek letters, and any symbolic math notation MUST be written in LaTeX using \\(...\\) for inline math. Screen readers cannot properly interpret plain text math - this is MANDATORY for accessibility.
+
+The long description must be formatted in **HTML** with semantic elements for accessibility.
+
+Examples of CORRECT LaTeX usage in HTML long descriptions:
+✓ "starts at the origin \\((0, 0)\\)" NOT "starts at the origin (0, 0)"
+✓ "maximum y-value of approximately \\(2\\) at \\(x \\approx 1.5\\)" NOT "maximum y-value of approximately 2 at x ≈ 1.5"  
+✓ "decreases back through \\(y = 0\\) at approximately \\(x = 3.1\\)" NOT "decreases back through y = 0 at approximately x = 3.1"
+✓ "continues to approximately \\(y = -1.5\\) at \\(x = 4\\)" NOT "continues to approximately y = -1.5 at x = 4"
+✓ "curve \\(f(x) = \\sin(x)\\)" NOT "curve f(x) = sin(x)"
+✓ "angle of \\(45°\\)" NOT "angle of 45°"
+✓ "from \\(x = 0\\) to \\(x = 4\\)" NOT "from x = 0 to x = 4"
+✓ "x-axis labeled from \\(0\\) to \\(4\\)" NOT "x-axis labeled from 0 to 4"
+✓ "y-axis labeled from \\(-2\\) to \\(2\\)" NOT "y-axis labeled from -2 to 2"
+✓ "y-axis" does not need LaTeX, as it is just a label not a mathematical expression
+✓ "Solve for \\(y\\)" needs LaTeX because of the variable.
+
+Use \\[...\\] only for displayed block equations that should be centered on their own line.
+
+HTML formatting: Use HTML semantic elements (<p>, <strong>, <table>, <ul>, <ol>) for structure and accessibility.`;
+
+  // Add custom instructions section if provided
+  const customInstructionsSection = customInstructions 
+    ? `\n\n⚠️ ADDITIONAL CUSTOM INSTRUCTIONS FROM EDUCATOR:
+${customInstructions}
+
+Please incorporate these custom instructions when generating both the alt-text and long description.`
+    : '';
 
   const prompt = `You are an accessibility expert helping to generate descriptions for TikZ diagrams following the NWEA Image Description Guidelines for Assessments.
 
 Given the TikZ LaTeX code and the rendered image, generate:
 1. A short alt-text (maximum 175 characters) suitable for the HTML alt attribute with mathematical expressions as speech text. Mathematical expressions should be kept to a minimum in the alt-text, focusing on key elements only.
-2. A longer, detailed HTML description for first year university students with visual impairments using screen readers wth mathematical expressions in LaTeX format
+2. A longer, detailed ${outputFormat.toUpperCase()} description for first year university students with visual impairments using screen readers with mathematical expressions in LaTeX format
 3. Note: Students do not see the TikZ code, only the rendered image. If the image does not contain the formula(s) represented in the TikZ code, base your descriptions solely on the image content.
 
 ⚠️ CRITICAL REQUIREMENT - Mathematical Content in the altText MUST Be Speech Text:
 In the alt-text, all symbols, Greek letters, operators, and mathematical relationships must be linearized into speech text suitable for screen readers. This is MANDATORY for accessibility. Keep mathematical expressions to a minimum in the alt-text, focusing on key elements only.
 
-Examples of CORRECT LaTeX usage in the altText:
+Examples of CORRECT speech text usage in the altText:
 ✓ "f of x equals x squared" NOT "f(x) = x^2"
 ✓ "alpha" NOT "α"
 ✓ "theta" NOT "θ"
@@ -34,23 +86,7 @@ Examples of CORRECT LaTeX usage in the altText:
 ✓ "f of x is equal to x times the absolute value of x end absolute value" NOT "f(x) = x |x|"
 ✓ "complement of A intersect B" NOT "Ā ∩ B"
 
-⚠️ CRITICAL REQUIREMENT - Mathematical Content in the longDescription MUST Use LaTeX:
-ALL mathematical expressions, variables, numbers paired with variables, coordinates, equations, inequalities, formulas, Greek letters, and any symbolic math notation MUST be written in LaTeX using \\(...\\) for inline math. Screen readers cannot properly interpret plain text math - this is MANDATORY for accessibility.
-
-Examples of CORRECT LaTeX usage in long descriptions:
-✓ "starts at the origin \\((0, 0)\\)" NOT "starts at the origin (0, 0)"
-✓ "maximum y-value of approximately \\(2\\) at \\(x \\approx 1.5\\)" NOT "maximum y-value of approximately 2 at x ≈ 1.5"  
-✓ "decreases back through \\(y = 0\\) at approximately \\(x = 3.1\\)" NOT "decreases back through y = 0 at approximately x = 3.1"
-✓ "continues to approximately \\(y = -1.5\\) at \\(x = 4\\)" NOT "continues to approximately y = -1.5 at x = 4"
-✓ "curve \\(f(x) = \\sin(x)\\)" NOT "curve f(x) = sin(x)"
-✓ "angle of \\(45°\\)" NOT "angle of 45°"
-✓ "from \\(x = 0\\) to \\(x = 4\\)" NOT "from x = 0 to x = 4"
-✓ "x-axis labeled from \\(0\\) to \\(4\\)" NOT "x-axis labeled from 0 to 4"
-✓ "y-axis labeled from \\(-2\\) to \\(2\\)" NOT "y-axis labeled from -2 to 2"
-✓ "y-axis" does not need LaTeX, as it is just a label not a mathematical expression
-✓ "Solve for \(y\)" needs LaTeX because of the variable.
-
-Use \\[...\\] only for displayed block equations that should be centered on their own line.
+${formatInstructions}
 
 NWEA Guidelines - Core Principles:
 - Brevity and focus: Be as concise as possible while conveying essential information and data
@@ -61,7 +97,7 @@ NWEA Guidelines - Core Principles:
 
 Implementation Requirements:
 - Provide context: Start by identifying the image type (e.g., "Bar graph showing...", "Function plot on Cartesian coordinate system with...", "Scatter plot of...")
-- Use HTML semantic elements: Use HTML <table>, <ul>, or <ol> tags to present tabular data or lists clearly and semantically
+${outputFormat === 'html' ? '- Use HTML semantic elements: Use HTML <table>, <ul>, or <ol> tags to present tabular data or lists clearly and semantically' : '- Use Markdown formatting: Use proper Markdown syntax for headings (##), lists (- or 1.), emphasis (**bold**), and code blocks'}
 - MANDATORY LaTeX for math: Every single mathematical expression, variable, coordinate, number in a mathematical context, equation, inequality, or formula must be wrapped in \\(...\\). This includes axis labels, coordinates, function values, angles, etc.
 - Summarize text: Include any text from the image without interpretation
 - Keep it simple: Use regular sentence structure and casing. Avoid redundancy
@@ -74,26 +110,32 @@ Alt-text Guidelines:
 Long Description Guidelines:
 - Written for first year university STEM students
 - Organized with most critical information first
-- Use HTML formatting (<p>, <strong>, <table>, <ul>, <ol>) for structure and accessibility
+${outputFormat === 'html' ? '- Use HTML formatting (<p>, <strong>, <table>, <ul>, <ol>) for structure and accessibility' : '- Use Markdown formatting (##, -, **, etc.) for structure and readability'}
 - ⚠️ MANDATORY: All mathematical expressions must use LaTeX \\(...\\) notation for screen reader compatibility
 - Focus on what is shown, not what conclusions to draw
+${customInstructionsSection}
 
 RESPONSE FORMAT:
 Return your response in this exact format:
 - First line: The alt-text (plain text, no special formatting)
 - Second line: Completely blank
-- Third line onwards: The HTML long description (can span multiple lines)
+- Third line onwards: The ${outputFormat.toUpperCase()} long description (can span multiple lines)
 
 DO NOT use JSON. DO NOT wrap in code blocks. Just output:
 [alt text here]
 
-[HTML long description here, with LaTeX like \\(x = 0\\) using single backslashes]
+[${outputFormat.toUpperCase()} long description here, with LaTeX like \\(x = 0\\) using single backslashes]
 
-Example response:
+${outputFormat === 'html' ? `Example HTML response:
 Five Venn diagrams showing different set operations between two overlapping circles labeled A and B
 
 <p>Five Venn diagrams arranged horizontally, each showing different set operations between two overlapping circles labeled \\(A\\) and \\(B\\). Each diagram has a title above indicating the set operation being illustrated.</p>
-<p><strong>First diagram:</strong> Titled \\(A \\cap B\\). Shows two overlapping circles where only the intersection region is shaded blue.</p>
+<p><strong>First diagram:</strong> Titled \\(A \\cap B\\). Shows two overlapping circles where only the intersection region is shaded blue.</p>` : `Example Markdown response:
+Five Venn diagrams showing different set operations between two overlapping circles labeled A and B
+
+Five Venn diagrams arranged horizontally, each showing different set operations between two overlapping circles labeled \\(A\\) and \\(B\\). Each diagram has a title above indicating the set operation being illustrated.
+
+**First diagram:** Titled \\(A \\cap B\\). Shows two overlapping circles where only the intersection region is shaded blue.`}
 
 TikZ Code:
 \`\`\`latex
@@ -125,13 +167,13 @@ ${tikzCode}
     ],
   });
 
- const responseText = message.content[0].text.trim();
+  const responseText = message.content[0].text.trim();
   
   // Split on the first blank line only
   const firstBlankLineMatch = responseText.match(/\n\s*\n/);
 
   if (!firstBlankLineMatch) {
-    throw new Error('Invalid response format - expected alt-text, blank line, then HTML description');
+    throw new Error('Invalid response format - expected alt-text, blank line, then long description');
   }
 
   const splitIndex = firstBlankLineMatch.index + firstBlankLineMatch[0].length;
