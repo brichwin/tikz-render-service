@@ -128,6 +128,22 @@
             overflow-wrap: break-word;
             line-height: 1.6;
         }
+
+        .radio-group {
+            margin: 10px 0;
+            padding-left: 0px;
+        }
+
+        .radio-group label {
+            display: inline-block;
+            margin-right: 15px;
+            cursor: pointer;
+        }
+
+        .radio-group input[type="radio"] {
+            cursor: pointer;
+            margin-right: 5px;
+        }
     </style>
     <script class="show">
         MathJax = {
@@ -154,12 +170,14 @@
         };
     </script>
     <script class="show" defer src="https://cdn.jsdelivr.net/npm/mathjax@4/tex-chtml.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/markdown-it@14/dist/markdown-it.min.js"></script>
 </head>
 
 <body>
     <h1>TikZ/PGFPlots Render Service</h1>
 
-    <p>Enter your TikZ code below:</p>
+    <h2>Input</h2>
+    <div><label for="tikzInput">Enter your TikZ code here:</label></div>
 
     <textarea id="tikzInput">\begin{tikzpicture}
   % Draw axes
@@ -190,22 +208,50 @@
             Example</button>
     </div>
 
+    <h2>AI Description Options</h2>
     <div class="checkbox-container">
         <label>
             <input type="checkbox" id="generateDescriptions" checked>
-            Generate AI accessibility descriptions (requires API key)
+            Generate AI accessibility descriptions (requires API key and PNG rendering)
         </label>
     </div>
 
+
+    <div style="margin-bottom: 15px;">
+        <label for="customInstructions"><strong>Additional instructions for AI (optional):</strong></label>
+        <textarea id="customInstructions" 
+                  placeholder="Example: Focus on formative learning objectives, or emphasize assessment criteria, or describe for a specific audience..."
+                  style="width: 100%; height: 80px; font-family: Arial, sans-serif; padding: 8px; margin-top: 5px; box-sizing: border-box; resize: vertical;"></textarea>
+        <small style="color: #666;">These instructions will be included in the AI prompt to guide description generation.</small>
+    </div>
+
+    <h2>Render Options</h2>
     <div>
         <button type="button" id="svgButton" onclick="render('svg')">Render as SVG</button>
         <button type="button" id="pngButton" onclick="render('png')">Render as PNG</button>
         <button type="button" id="downloadButton" onclick="downloadImage()" disabled>Download Image</button>
-        <button type="button" onclick="toggleDebug()">Toggle Debug Info</button>
+        <button type="button" id="toggleDebugButton" onclick="toggleDebug()">Hide Debug Info</button>
     </div>
 
+    <div class="radio-group" id="formatOptions">
+        <fieldset>
+            <legend>Long description format:</legend>
+            <label>
+                <input type="radio" name="outputFormat" value="html" checked>
+                HTML
+            </label>
+            <label>
+                <input type="radio" name="outputFormat" value="md">
+                Markdown
+            </label>
+        </fieldset>
+    </div>
+
+    <h2 id="debugInformation" style="display: none;">Debug Information</h2>
     <div id="error"></div>
     <div id="debug"></div>
+
+    <h2>Result</h2>
     <div id="result"></div>
 
     <script>
@@ -544,6 +590,16 @@
         let isRendering = false;
         let currentImageUrl = null;
         let currentFormat = null;
+        let md = null; // markdown-it instance
+
+        // Initialize markdown-it when available
+        if (typeof markdownit !== 'undefined') {
+            md = markdownit({
+                html: true,
+                breaks: true,
+                typographer: true
+            });
+        }
 
         // Detect unexpected page reloads
         window.addEventListener('beforeunload', function (e) {
@@ -567,7 +623,20 @@
 
         function toggleDebug() {
             const debugDiv = document.getElementById('debug');
-            debugDiv.style.display = debugDiv.style.display === 'none' ? 'block' : 'none';
+            const toggleButton = document.getElementById('toggleDebugButton');
+            const debugHeading = document.getElementById('debugInformation');
+            
+            if (debugDiv.style.display === 'none') {
+                debugDiv.style.display = 'block';
+                debugHeading.style.display = 'block';
+                toggleButton.textContent = 'Hide Debug Info';
+                log('Debug info shown');
+            } else {
+                debugDiv.style.display = 'none';
+                debugHeading.style.display = 'none';
+                toggleButton.textContent = 'Show Debug Info';
+                log('Debug info hidden');
+            }
         }
 
         function setButtonsEnabled(enabled) {
@@ -627,11 +696,14 @@
             const resultDiv = document.getElementById('result');
             const errorDiv = document.getElementById('error');
             const debugDiv = document.getElementById('debug');
+            const debugHeading = document.getElementById('debugInformation');
 
             // Clear previous results
             resultDiv.innerHTML = '<p class="loading">Rendering... Please wait, this may take up to 30 seconds for complex diagrams.</p>';
             errorDiv.textContent = '';
-            debugDiv.style.display = 'block';
+            
+            // Don't change debug visibility - respect current state
+            // Debug visibility is controlled only by the toggle button
 
             log('Format: ' + format);
             log('Generate descriptions: ' + generateDesc);
@@ -746,17 +818,27 @@
                         // Update the placeholder with actual descriptions
                         const placeholder = document.getElementById('ai-descriptions-placeholder');
                         if (placeholder && descriptions) {
+                            // Render long description based on format
+                            let longDescHtml;
+                            if (descriptions.outputFormat === 'md' && md) {
+                                log('Rendering Markdown description with markdown-it');
+                                longDescHtml = md.render(descriptions.longDescription);
+                            } else {
+                                longDescHtml = descriptions.longDescription;
+                            }
+
                             placeholder.innerHTML = `
                                 <h4>AI-Generated Accessibility Descriptions</h4>
+                                <p><strong>Output Format:</strong> ${descriptions.outputFormat.toUpperCase()}</p>
                                 <p><strong>Alt Text (for screen readers):</strong></p>
                                 <div class="alt-text">${escapeHtml(descriptions.altText)}</div>
                                 <details>
                                     <summary>Long Description</summary>
-                                    <div style="padding: 10px;">${descriptions.longDescription}</div>
+                                    <div style="padding: 10px;">${longDescHtml}</div>
                                 </details>
                                 <details>
                                     <summary>View Long Description Source</summary>
-                                    <pre class="long-desc-source">${escapeHtml(formatHtmlSource(descriptions.longDescription))}</pre>
+                                    <pre class="long-desc-source">${escapeHtml(descriptions.outputFormat === 'md' ? descriptions.longDescription : formatHtmlSource(descriptions.longDescription))}</pre>
                                 </details>
                             `;
                             
@@ -819,16 +901,34 @@
                 log('Converting blob to base64 for description generation...');
                 const imageBase64 = await blobToBase64(blob);
                 
+                // Get selected output format
+                const outputFormat = document.querySelector('input[name="outputFormat"]:checked').value;
+                log('Requested output format: ' + outputFormat);
+                
+                // Get custom instructions
+                const customInstructions = document.getElementById('customInstructions').value.trim();
+                if (customInstructions) {
+                    log('Custom instructions provided: ' + customInstructions.substring(0, 100) + (customInstructions.length > 100 ? '...' : ''));
+                }
+                
+                const requestBody = {
+                    tikzCode: tikzCode,
+                    imageBase64: imageBase64,
+                    format: format,
+                    outputFormat: outputFormat
+                };
+
+                // Add custom instructions if provided
+                if (customInstructions) {
+                    requestBody.customInstructions = customInstructions;
+                }
+                
                 const response = await fetch(DESCRIBE_URL, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({
-                        tikzCode: tikzCode,
-                        imageBase64: imageBase64,
-                        format: format
-                    })
+                    body: JSON.stringify(requestBody)
                 });
 
                 if (!response.ok) {
@@ -850,7 +950,8 @@
 
                 const descriptions = {
                     altText: text.substring(0, firstBlankLineMatch.index).trim(),
-                    longDescription: text.substring(splitIndex).trim()
+                    longDescription: text.substring(splitIndex).trim(),
+                    outputFormat: outputFormat
                 };
 
                 // Check cache status from header
@@ -935,11 +1036,27 @@
             log('Page loaded at: ' + new Date().toISOString());
             log('User agent: ' + navigator.userAgent);
 
+            // Check if markdown-it loaded
+            if (md) {
+                log('✓ markdown-it library loaded successfully');
+            } else {
+                log('⚠ markdown-it library not available - Markdown rendering disabled');
+            }
+
             // Populate examples dropdown
             populateExamplesDropdown();
 
             // Ensure download button starts disabled
             setDownloadButtonEnabled(false);
+
+            // Set initial debug button text and heading visibility based on initial visibility
+            const debugDiv = document.getElementById('debug');
+            const toggleButton = document.getElementById('toggleDebugButton');
+            const debugHeading = document.getElementById('debugInformation');
+            
+            const isDebugVisible = debugDiv.style.display !== 'none';
+            toggleButton.textContent = isDebugVisible ? 'Hide Debug Info' : 'Show Debug Info';
+            debugHeading.style.display = isDebugVisible ? 'block' : 'none';
 
             try {
                 log('Testing connection to server...');
