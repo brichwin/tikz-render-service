@@ -14,7 +14,7 @@ has not been tuned for production use. Cacehes are used to reduce API calls to t
 - Configurable timeouts for compilation safety
 - Health check endpoint for monitoring
 
-<img width="2570" height="5134" alt="TikZ service output showing TikZ source code, debug output, rendered mathematical plot, and AI generated short and long description" src="https://github.com/user-attachments/assets/0da72393-699c-4dec-bc21-e249429d85fa" />
+<img width="2570" alt="TikZ service output showing TikZ source code, debug output, rendered mathematical plot, and AI generated short and long description" src="https://github.com/user-attachments/assets/f9d91893-67ef-45be-9e3a-302bfe575d84" />
 
 
 ## Prerequisites
