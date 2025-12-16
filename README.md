@@ -1,6 +1,7 @@
 # TikZ Render Service
 
-A Node.js Express service that compiles TikZ LaTeX code snippets and returns rendered images in SVG or PNG format, with optional AI-generated accessibility descriptions.
+A Node.js Express service that compiles TikZ LaTeX code snippets and returns rendered images in SVG or PNG format, with optional AI-generated accessibility descriptions. This was developed as a proof-of-concept project. The code
+has not been tuned for production use. Cacehes are used to reduce API calls to the AI as much as possible.
 
 ## Features
 
@@ -228,7 +229,9 @@ Generate AI accessibility descriptions for a TikZ diagram.
 {
   "tikzCode": "\\begin{tikzpicture}\\draw (0,0) circle (1cm);\\end{tikzpicture}",
   "imageBase64": "iVBORw0KGgoAAAANS...",
-  "format": "png"
+  "format": "png",
+  "outputFormat": "html",
+  "customInstructions": "Focus on formative learning objectives for calculus students"
 }
 ```
 
@@ -237,26 +240,72 @@ Generate AI accessibility descriptions for a TikZ diagram.
 - `tikzCode` (string, required): The TikZ picture code
 - `imageBase64` (string, required): Base64-encoded PNG image
 - `format` (string, optional): Image format (currently only `png` supported). Default: `png`
+- `outputFormat` (string, optional): Long description format, either `html` or `md`. Default: `html`
+- `customInstructions` (string, optional): Additional instructions to guide AI description generation
 
-**Response:**
+**Response (Plain Text):**
+
+```
+Circle with 1cm radius centered at origin
+
+<p>A simple geometric diagram showing a circle with a radius of \(1\) centimeter. The circle is centered at the coordinate origin \((0,0)\).</p>
+```
+
+The response is plain text with two parts separated by a blank line:
+1. **First line**: Alt-text (≤175 characters) - concise description for screen readers
+2. **After blank line**: Long description in HTML or Markdown format with LaTeX math using `\(...\)` notation
+
+**Headers:**
+
+- `X-Cache`: `HIT` if served from cache, `MISS` if freshly generated
+- `Content-Type`: `text/plain; charset=utf-8`
+
+**Output Format Examples:**
+
+**HTML format (`outputFormat: "html"`):**
+```html
+<p>A Cartesian coordinate system showing a function plot from \(x = 0\) to \(x = 4\).</p>
+<p><strong>Key features:</strong></p>
+<ul>
+  <li>Blue sine curve with amplitude \(2\)</li>
+  <li>x-axis labeled from \(0\) to \(4\)</li>
+  <li>y-axis labeled from \(-2\) to \(2\)</li>
+</ul>
+```
+
+**Markdown format (`outputFormat: "md"`):**
+```markdown
+A Cartesian coordinate system showing a function plot from $x = 0$ to $x = 4$.
+
+**Key features:**
+
+- Blue sine curve with amplitude $2$
+- x-axis labeled from $0$ to $4$
+- y-axis labeled from $-2$ to $2$
+```
+
+**Custom Instructions:**
+
+Use the `customInstructions` parameter to guide description generation for specific contexts:
 
 ```json
 {
-  "altText": "Circle with 1cm radius centered at origin",
-  "longDescription": "<p>A simple geometric diagram showing a circle with a radius of 1 centimeter. The circle is centered at the coordinate origin (0,0).</p>",
-  "cached": false
+  "customInstructions": "Describe for formative assessment in a calculus course"
 }
 ```
 
-**Response Fields:**
+Example use cases:
+- `"Focus on formative learning objectives"`
+- `"Emphasize assessment criteria for physics students"`
+- `"Describe for high school students learning trigonometry"`
+- `"Use simple language appropriate for introductory courses"`
 
-- `altText` (string): Short description (≤150 characters) for HTML alt attribute
-- `longDescription` (string): Detailed HTML description
-- `cached` (boolean): Whether the description was served from cache
+**Note**: 
+- AI descriptions only work with PNG format due to Claude API limitations
+- Descriptions are cached based on TikZ code, format, output format, and custom instructions
+- Different output formats or instructions will generate separate cache entries
 
-**Note**: AI descriptions only work with PNG format due to Claude API limitations.
-
-**Example using curl:**
+**Example using curl (with custom format and instructions):**
 
 ```bash
 # First, render and get the base64 image
@@ -265,10 +314,16 @@ curl -X POST http://localhost:3010/api/render \
   -d '{"tikzCode":"\\begin{tikzpicture}\\draw (0,0) circle (1cm);\\end{tikzpicture}","format":"png"}' \
   | base64 > image.b64
 
-# Then generate description
+# Then generate Markdown description with custom instructions
 curl -X POST http://localhost:3010/api/describe \
   -H "Content-Type: application/json" \
-  -d "{\"tikzCode\":\"\\\\begin{tikzpicture}\\\\draw (0,0) circle (1cm);\\\\end{tikzpicture}\",\"imageBase64\":\"$(cat image.b64)\",\"format\":\"png\"}"
+  -d "{
+    \"tikzCode\":\"\\\\begin{tikzpicture}\\\\draw (0,0) circle (1cm);\\\\end{tikzpicture}\",
+    \"imageBase64\":\"$(cat image.b64)\",
+    \"format\":\"png\",
+    \"outputFormat\":\"md\",
+    \"customInstructions\":\"Describe for geometry students learning basic shapes\"
+  }"
 ```
 
 ### GET /api/health
@@ -416,6 +471,82 @@ The service includes several security measures:
 5. **Sanitization**: File paths and commands are carefully sanitized
 6. **API Key Security**: Never commit API keys to version control
 
+### ⚠️ Critical: Demo Page Security
+
+**DO NOT host `exampleWithAI.html` or similar demo pages on the same origin/domain as the API service** without proper security controls.
+
+**Risk**: The AI description service can be manipulated to generate content containing:
+- Links to internal/localhost endpoints (`http://localhost:3010/...`)
+- References to local file paths
+- Embedded images pointing to internal services
+- Information about internal API structure
+
+**Attack Vector Example:**
+```latex
+% Malicious TikZ code
+\begin{tikzpicture}
+\node {Visit http://localhost:3010/api/health for secrets};
+\node {See file:///etc/passwd for details};
+\end{tikzpicture}
+```
+
+The AI might include these URLs/paths in its generated descriptions, which could then be rendered as clickable links or embedded content in the demo page.
+
+**Safe Deployment Options:**
+
+1. **Separate Domain** (Recommended):
+   - Host API on: `https://api.example.com`
+   - Host demo on: `https://demo.example.com` or local file system
+   - Use CORS to control access
+
+2. **Content Security Policy**:
+   ```html
+   <meta http-equiv="Content-Security-Policy" 
+         content="default-src 'self'; 
+                  connect-src 'self' https://api.example.com;
+                  img-src 'self' data: https:;
+                  script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net;">
+   ```
+
+3. **Sanitize AI Output**:
+   - Strip or escape all URLs before rendering
+   - Remove `<a>` tags from AI-generated HTML
+   - Block `localhost`, `127.0.0.1`, and internal IP ranges
+
+4. **Authentication & Authorization**:
+   - Require API keys for AI description endpoint
+   - Implement user authentication
+   - Rate limit per user/API key
+
+5. **Local Development Only**:
+   - Keep demo pages in local file system
+   - Never deploy to production
+   - Use `file:///` protocol for testing
+
+**Example Sanitization Code:**
+
+```javascript
+function sanitizeAIDescription(html) {
+  // Remove all anchor tags
+  html = html.replace(/<a\b[^>]*>(.*?)<\/a>/gi, '$1');
+  
+  // Remove localhost/internal references
+  html = html.replace(/https?:\/\/(localhost|127\.0\.0\.1|0\.0\.0\.0)[^\s"]*/gi, '[REDACTED]');
+  html = html.replace(/file:\/\/[^\s"]*/gi, '[REDACTED]');
+  
+  // Remove src attributes pointing to local resources
+  html = html.replace(/src=["'](http:\/\/localhost|http:\/\/127\.0\.0\.1|file:\/\/)[^"']*["']/gi, 'src=""');
+  
+  return html;
+}
+```
+
+**For Production Deployments:**
+- Never expose demo interfaces publicly
+- Implement proper authentication
+- Use a separate frontend application with sanitization
+- Log and monitor AI-generated content for suspicious patterns
+
 ### Blocked Commands
 
 The following LaTeX commands are blocked for security:
@@ -431,8 +562,6 @@ The following LaTeX commands are blocked for security:
 
 - **Never commit** `.env` files to version control
 - Add `.env` to `.gitignore`
-- Use environment variables in production deployments
-- Rotate API keys if exposed
 - Use separate keys for development and production
 - Monitor API usage in Anthropic Console
 - Set up billing alerts to prevent unexpected charges
@@ -440,15 +569,20 @@ The following LaTeX commands are blocked for security:
 ## Performance
 
 - **Image Caching**: Identical render requests are served from cache (1 hour TTL)
-- **Description Caching**: AI descriptions are cached based on TikZ code (1 hour TTL)
+- **Description Caching**: AI descriptions are cached based on TikZ code, output format, and custom instructions (1 hour TTL)
 - **Queue System**: Compilation requests are queued to prevent resource exhaustion
 - **Concurrency Limit**: Only 2 compilations run simultaneously by default
 
 **Cache Statistics:**
 
 - Cache hit = instant response (< 10ms)
-- Cache miss (render) = 1-30 seconds (depending on complexity)
-- Cache miss (AI description) = 1-3 seconds (API call to Claude)
+- Cache miss (image render) = 1-10 seconds (depending on complexity)
+- Cache miss (AI description) = 1-30 seconds (API call to Claude)
+
+**Cache Keys:**
+- Image cache: Based on TikZ code and output format
+- Description cache: Based on TikZ code, image format, output format (HTML/Markdown), and custom instructions
+- Changing output format or instructions creates a new cache entry
 
 ## Troubleshooting
 
